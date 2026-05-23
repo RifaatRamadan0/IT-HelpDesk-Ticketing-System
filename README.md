@@ -1,2 +1,8 @@
-# IT-HelpDesk-Ticketing-System
-Full stack IT Help Desk &amp; Ticketing Management System built with React, ASP.NET Core Web API, and SQL Server.
+# IT Help Desk & Ticketing Management System
+Built as part of the IDS Full Stack Web Development Internship — Summer 2026.
+
+## Stack
+- React + Tailwind CSS
+- ASP.NET Core Web API
+- SQL Server
+- JWT Authentication
