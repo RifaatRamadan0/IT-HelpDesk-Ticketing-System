@@ -1,0 +1,29 @@
+﻿using HelpDesk.BLL.DTOs;
+using HelpDesk.BLL.Interfaces;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace HelpDesk_API.Controllers
+{
+    [Route("api/Auth")]
+    [ApiController]
+    public class AuthController : ControllerBase
+    {
+    private readonly IAuthService _authService;
+
+    public AuthController(IAuthService authService)
+    {
+        _authService = authService;
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest)
+    {
+        var loginResponse = await _authService.LoginAsync(loginRequest);
+        if (loginResponse == null)
+            return Unauthorized();
+        return Ok(loginResponse);
+    }
+
+    }
+}
