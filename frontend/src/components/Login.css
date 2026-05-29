@@ -1,0 +1,141 @@
+.login-page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e2538;
+  padding: 24px;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 48px 56px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.login-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: #3b66d1;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 700;
+  color: #0f1320;
+}
+
+.login-subtitle {
+  margin: 12px 0 0;
+  text-align: center;
+  color: #8a8f9c;
+  font-size: 20px;
+}
+
+.login-form {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f1320;
+  margin-bottom: 10px;
+}
+
+.login-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  font-size: 16px;
+  border: 2px solid #0f1320;
+  border-radius: 10px;
+  outline: none;
+  margin-bottom: 28px;
+  transition: border-color 0.15s ease;
+}
+
+.login-input:focus {
+  border-color: #3b66d1;
+}
+
+.login-input::placeholder {
+  color: #9aa0ac;
+}
+
+.login-password-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.login-forgot {
+  color: #3b66d1;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.login-forgot:hover {
+  text-decoration: underline;
+}
+
+.login-error {
+  margin: -12px 0 20px;
+  color: #d23b3b;
+  font-size: 15px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #3b66d1;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-button:hover:not(:disabled) {
+  background: #3257b8;
+}
+
+.login-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .login-card {
+    padding: 32px 24px;
+  }
+  .login-title {
+    font-size: 34px;
+  }
+}
