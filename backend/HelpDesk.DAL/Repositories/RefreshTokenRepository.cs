@@ -28,7 +28,9 @@ namespace HelpDesk.DAL.Repositories
         public async Task<RefreshToken?> GetByTokenAsync(string token)
         {
             return await _context.RefreshTokens
-                    .SingleOrDefaultAsync(t => t.Token == token);
+                .Include(t => t.User)
+                .ThenInclude(u => u.Role)
+                .SingleOrDefaultAsync(t => t.Token == token);
         }
 
         public async Task RevokeAllByUserIdAsync(int userId)
