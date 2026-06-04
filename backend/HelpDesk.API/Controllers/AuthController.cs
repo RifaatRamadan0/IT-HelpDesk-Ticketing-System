@@ -9,21 +9,30 @@ namespace HelpDesk_API.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-    private readonly IAuthService _authService;
+        private readonly IAuthService _authService;
 
-    public AuthController(IAuthService authService)
-    {
-        _authService = authService;
-    }
+        public AuthController(IAuthService authService)
+        {
+            _authService = authService;
+        }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest)
-    {
-        var loginResponse = await _authService.LoginAsync(loginRequest);
-        if (loginResponse == null)
-            return Unauthorized();
-        return Ok(loginResponse);
-    }
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto loginRequest)
+        {
+            var loginResponse = await _authService.LoginAsync(loginRequest);
+            if (loginResponse == null)
+                return Unauthorized();
+            return Ok(loginResponse);
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto refreshRequest)
+        {
+            var loginResponse = await _authService.RefreshAsync(refreshRequest);
+            if (loginResponse == null)
+                return Unauthorized();
+            return Ok(loginResponse);
+        }
 
     }
 }

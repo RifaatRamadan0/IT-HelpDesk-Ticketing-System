@@ -10,5 +10,6 @@ namespace HelpDesk.BLL.Interfaces
     public interface IAuthService
     {
         Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
+        Task<LoginResponseDto?> RefreshAsync(RefreshTokenRequestDto request);
     }
 }

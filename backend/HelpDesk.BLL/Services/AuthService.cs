@@ -50,5 +50,32 @@ namespace HelpDesk.BLL.Services
                 RefreshToken = refreshToken
             };
         }
+
+        public async Task<LoginResponseDto?> RefreshAsync(RefreshTokenRequestDto request)
+        {
+            var refreshToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+
+            if (refreshToken == null || refreshToken.IsRevoked || refreshToken.ExpiresDate < DateTime.UtcNow)
+                return null;
+
+            await _refreshTokenRepository.RevokeAllByUserIdAsync(refreshToken.UserId);
+
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+            var accessToken = _tokenService.GenerateAccessToken(refreshToken.User);
+
+            await _refreshTokenRepository.AddAsync(new RefreshToken
+            {
+                UserId = refreshToken.UserId,
+                Token = newRefreshToken,
+                CreatedDate = DateTime.UtcNow,
+                ExpiresDate = DateTime.UtcNow.AddDays(7)
+            });
+
+            return new LoginResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = newRefreshToken
+            };
+        }
     }
 }

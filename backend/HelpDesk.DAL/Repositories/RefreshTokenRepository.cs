@@ -1,6 +1,7 @@
 ﻿using HelpDesk.DAL.Data;
 using HelpDesk.DAL.Interfaces;
 using HelpDesk.Domain.Models;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,19 @@ namespace HelpDesk.DAL.Repositories
         {
             await _context.RefreshTokens.AddAsync(token);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<RefreshToken?> GetByTokenAsync(string token)
+        {
+            return await _context.RefreshTokens
+                    .SingleOrDefaultAsync(t => t.Token == token);
+        }
+
+        public async Task RevokeAllByUserIdAsync(int userId)
+        {
+            await _context.RefreshTokens
+                .Where(t => t.UserId == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRevoked, true));
         }
     }
 }
