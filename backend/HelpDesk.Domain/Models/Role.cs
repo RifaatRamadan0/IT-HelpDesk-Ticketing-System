@@ -10,6 +10,6 @@ namespace HelpDesk.Domain.Models
     {
         public int Id { get; set; }
         public string RoleName { get; set; } = string.Empty;
-        public ICollection<User> Users = new List<User>();
+        public ICollection<User> Users { get; set; } = new List<User>();
     }
 }
