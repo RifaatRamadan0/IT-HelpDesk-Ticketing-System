@@ -26,6 +26,17 @@ namespace HelpDesk_API
             builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            const string FrontendCorsPolicy = "FrontendCorsPolicy";
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(FrontendCorsPolicy, policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
+
             builder.Services.AddScoped<IUserRepository, UserRepository>();
             builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             builder.Services.AddScoped<IAuthService, AuthService>();
@@ -57,6 +68,8 @@ namespace HelpDesk_API
             }
 
             app.UseHttpsRedirection();
+
+            app.UseCors(FrontendCorsPolicy);
 
             app.UseAuthentication();
             app.UseAuthorization();
