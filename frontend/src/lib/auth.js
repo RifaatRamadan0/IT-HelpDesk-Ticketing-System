@@ -2,6 +2,8 @@
 // server keeps no session, so "am I logged in?" is answered by reading the
 // token's own `exp` claim — not just by checking the token string exists.
 
+import { revokeSession } from '../api/auth'
+
 export function getToken() {
   return localStorage.getItem('accessToken')
 }
@@ -31,9 +33,27 @@ export function isLoggedIn() {
   return payload.exp * 1000 > Date.now()
 }
 
-export function logout() {
+// Local-only: drop the tokens from this browser. Used on the auto-logout path
+// (a 401), where the token is already dead so there's nothing to revoke server-
+// side.
+export function clearTokens() {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
+}
+
+// User-initiated logout: revoke the refresh tokens server-side first (best
+// effort), then clear local storage no matter what. Always clearing means a
+// failed network call can never trap the user in a logged-in UI.
+export async function logout() {
+  const token = getToken()
+  if (token) {
+    try {
+      await revokeSession(token)
+    } catch {
+      // Swallow — local sign-out below must still happen.
+    }
+  }
+  clearTokens()
 }
 
 // The backend builds claims with ClaimTypes.* (TokenService.cs), which serialize

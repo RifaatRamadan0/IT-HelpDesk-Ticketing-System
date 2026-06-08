@@ -1,7 +1,9 @@
 ﻿using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HelpDesk_API.Controllers
 {
@@ -32,6 +34,15 @@ namespace HelpDesk_API.Controllers
             if (loginResponse == null)
                 return Unauthorized();
             return Ok(loginResponse);
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _authService.LogoutAsync(userId);
+            return NoContent();
         }
 
     }

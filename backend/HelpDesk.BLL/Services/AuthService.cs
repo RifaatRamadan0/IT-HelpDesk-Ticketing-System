@@ -77,5 +77,10 @@ namespace HelpDesk.BLL.Services
                 RefreshToken = newRefreshToken
             };
         }
+
+        public async Task LogoutAsync(int userId)
+        {
+            await _refreshTokenRepository.RevokeAllByUserIdAsync(userId);
+        }
     }
 }

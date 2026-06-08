@@ -2,7 +2,7 @@
 // api/auth.js: keep fetch/HTTP details out of the component so the UI only
 // deals with "data or error".
 
-import { logout } from '../lib/auth'
+import { clearTokens } from '../lib/auth'
 
 const API_ROOT = 'http://localhost:5175/api'
 const TICKET_URL = `${API_ROOT}/Ticket`
@@ -31,7 +31,7 @@ function authHeader() {
 async function getLookup(url, label) {
   const response = await fetch(url, { headers: authHeader() })
   if (response.status === 401) {
-    logout()
+    clearTokens()
     throw new SessionExpiredError()
   }
   if (!response.ok) {
@@ -70,7 +70,7 @@ function ticketsUrlForRole(role) {
 export async function fetchTicketById(id) {
   const response = await fetch(`${TICKET_URL}/${id}`, { headers: authHeader() })
   if (response.status === 401) {
-    logout()
+    clearTokens()
     throw new SessionExpiredError()
   }
   if (response.status === 404) {
@@ -90,7 +90,7 @@ export async function fetchTickets(role) {
 
   const response = await fetch(url, { headers: authHeader() })
   if (response.status === 401) {
-    logout()
+    clearTokens()
     throw new SessionExpiredError()
   }
   if (!response.ok) {
@@ -111,7 +111,7 @@ export async function createTicket({ title, description, categoryId, priorityId 
   })
 
   if (response.status === 401) {
-    logout()
+    clearTokens()
     throw new SessionExpiredError()
   }
   if (response.status === 403) {

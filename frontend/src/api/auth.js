@@ -26,3 +26,13 @@ export async function login(email, password) {
   // Shape: { accessToken, refreshToken }
   return response.json()
 }
+
+// Best-effort server-side revocation of the user's refresh tokens. The caller
+// clears local storage regardless of the outcome, so failures here (network
+// down, token already expired) are intentionally swallowed by the caller.
+export async function revokeSession(accessToken) {
+  await fetch(`${API_BASE}/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}

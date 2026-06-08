@@ -11,5 +11,6 @@ namespace HelpDesk.BLL.Interfaces
     {
         Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
         Task<LoginResponseDto?> RefreshAsync(RefreshTokenRequestDto request);
+        Task LogoutAsync(int userId);
     }
 }
