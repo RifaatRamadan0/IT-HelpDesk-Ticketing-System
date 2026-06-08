@@ -72,10 +72,13 @@ namespace HelpDesk.BLL.Services
             return await _ticketRepository.CreateAsync(ticket);
         }
 
-        public async Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request)
+        public async Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
+                return false;
+
+            if (ticket.CreatedByUserId != requestingUserId)
                 return false;
 
             bool isOpen = ticket.StatusId == (int)TicketStatus.Open;
@@ -92,10 +95,13 @@ namespace HelpDesk.BLL.Services
 
         }
 
-        public async Task<bool> DeleteAsync(int ticketId)
+        public async Task<bool> DeleteAsync(int ticketId, int requestingUserId)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
+                return false;
+
+            if (ticket.CreatedByUserId != requestingUserId)
                 return false;
 
             bool isOpen = ticket.StatusId == (int)TicketStatus.Open;
@@ -126,10 +132,21 @@ namespace HelpDesk.BLL.Services
             return tickets.Select(MapToResponseDto).ToList();
         }
 
-        public async Task<TicketResponseDto?> GetByIdAsync(int ticketId)
+        public async Task<TicketResponseDto?> GetByIdAsync(int ticketId, int requestingUserId, string? requestingUserRole)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
+                return null;
+
+            bool canView = requestingUserRole switch
+            {
+                "Admin" or "Manager" => true,
+                "Employee" => ticket.CreatedByUserId == requestingUserId,
+                "Agent" => ticket.AssignedToUserId == requestingUserId,
+                _ => false
+            };
+
+            if (!canView)
                 return null;
 
             return MapToResponseDto(ticket);

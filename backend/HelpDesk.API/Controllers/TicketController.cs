@@ -40,9 +40,16 @@ namespace HelpDesk_API.Controllers
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
         public async Task<IActionResult> GetTicketById(int id)
         {
-            var ticket = await _ticketService.GetByIdAsync(id);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            // The service applies resource-level authorization and returns null
+            // when the caller may not see this ticket; we map that to 404 (not
+            // 403) so other users' tickets aren't disclosed by existence.
+            var ticket = await _ticketService.GetByIdAsync(id, userId, role);
             if (ticket == null)
                 return NotFound();
+
             return Ok(ticket);
         }
 
@@ -76,7 +83,8 @@ namespace HelpDesk_API.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketRequestDto request)
         {
-            var isUpdated = await _ticketService.UpdateAsync(id, request);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isUpdated = await _ticketService.UpdateAsync(id, request, userId);
             if (!isUpdated)
                 return BadRequest("Failed to update ticket.");
             return NoContent();
@@ -86,7 +94,8 @@ namespace HelpDesk_API.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> DeleteTicket(int id)
         {
-            var isDeleted = await _ticketService.DeleteAsync(id);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isDeleted = await _ticketService.DeleteAsync(id, userId);
             if (!isDeleted)
                 return BadRequest("Failed to delete ticket.");
             return NoContent();
