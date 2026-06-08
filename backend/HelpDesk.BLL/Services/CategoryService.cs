@@ -1,3 +1,4 @@
+using AutoMapper;
 using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using HelpDesk.DAL.Interfaces;
@@ -13,18 +14,18 @@ namespace HelpDesk.BLL.Services
     public class CategoryService : ICategoryService
     {
         private readonly ICategoryRepository _categoryRepository;
+        private readonly IMapper _mapper;
 
-        public CategoryService(ICategoryRepository categoryRepository)
+        public CategoryService(ICategoryRepository categoryRepository, IMapper mapper)
         {
             _categoryRepository = categoryRepository;
+            _mapper = mapper;
         }
 
         public async Task<ICollection<CategoryDto>> GetAllAsync()
         {
             var categories = await _categoryRepository.GetAllAsync();
-            return categories
-                .Select(c => new CategoryDto { Id = c.Id, Name = c.CategoryName })
-                .ToList();
+            return _mapper.Map<List<CategoryDto>>(categories);
         }
     }
 }

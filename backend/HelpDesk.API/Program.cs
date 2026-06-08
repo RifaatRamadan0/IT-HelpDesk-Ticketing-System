@@ -49,6 +49,9 @@ namespace HelpDesk_API
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IPriorityService, PriorityService>();
 
+            builder.Services.AddAutoMapper(cfg =>
+                cfg.AddMaps(typeof(HelpDesk.BLL.Mapping.MappingProfile).Assembly));
+
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

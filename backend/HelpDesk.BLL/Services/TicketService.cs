@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.DTOs;
+﻿using AutoMapper;
+using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using HelpDesk.DAL.Interfaces;
 using HelpDesk.DAL.Repositories;
@@ -14,47 +15,12 @@ namespace HelpDesk.BLL.Services
     public class TicketService : ITicketService
     {
         private readonly ITicketRepository _ticketRepository;
+        private readonly IMapper _mapper;
 
-        public TicketService(ITicketRepository ticketRepository)
+        public TicketService(ITicketRepository ticketRepository, IMapper mapper)
         {
             _ticketRepository = ticketRepository;
-        }
-
-        private TicketResponseDto MapToResponseDto(Ticket ticket)
-        {
-            return new TicketResponseDto
-            {
-                Id = ticket.Id,
-                Title = ticket.Title,
-                Description = ticket.Description,
-                CategoryId = ticket.CategoryId,
-                CategoryName = ticket.Category.CategoryName,
-                PriorityId = ticket.PriorityId,
-                PriorityName = ticket.Priority.PriorityName,
-                StatusId = ticket.StatusId,
-                StatusName = ticket.Status.StatusName,
-                CreatedByUser = new UserSummaryDto
-                {
-                    Id = ticket.CreatedByUser.Id,
-                    FirstName = ticket.CreatedByUser.FirstName,
-                    LastName = ticket.CreatedByUser.LastName
-                },
-                AssignedByUser = ticket.AssignedByUser == null ? null : new UserSummaryDto
-                {
-                    Id = ticket.AssignedByUser.Id,
-                    FirstName = ticket.AssignedByUser.FirstName,
-                    LastName = ticket.AssignedByUser.LastName
-                },
-                AssignedToUser = ticket.AssignedToUser == null ? null : new UserSummaryDto
-                {
-                    Id = ticket.AssignedToUser.Id,
-                    FirstName = ticket.AssignedToUser.FirstName,
-                    LastName = ticket.AssignedToUser.LastName
-                },
-                CreatedDate = ticket.CreatedDate,
-                UpdatedDate = ticket.UpdatedDate,
-                ResolvedDate = ticket.ResolvedDate
-            };
+            _mapper = mapper;
         }
 
         public async Task<int> CreateAsync(CreateTicketRequestDto request, int createdByUserId)
@@ -115,21 +81,21 @@ namespace HelpDesk.BLL.Services
         {
             var tickets = await _ticketRepository.GetAllAsync();
 
-            return tickets.Select(MapToResponseDto).ToList();
+            return _mapper.Map<List<TicketResponseDto>>(tickets);
         }
 
         public async Task<ICollection<TicketResponseDto>> GetByAssignedUserIdAsync(int userId)
         {
             var tickets = await _ticketRepository.GetByAssignedUserIdAsync(userId);
 
-            return tickets.Select(MapToResponseDto).ToList();
+            return _mapper.Map<List<TicketResponseDto>>(tickets);
         }
 
         public async Task<ICollection<TicketResponseDto>> GetByCreatedUserIdAsync(int userId)
         {
             var tickets = await _ticketRepository.GetByCreatedUserIdAsync(userId);
 
-            return tickets.Select(MapToResponseDto).ToList();
+            return _mapper.Map<List<TicketResponseDto>>(tickets);
         }
 
         public async Task<TicketResponseDto?> GetByIdAsync(int ticketId, int requestingUserId, string? requestingUserRole)
@@ -149,7 +115,7 @@ namespace HelpDesk.BLL.Services
             if (!canView)
                 return null;
 
-            return MapToResponseDto(ticket);
+            return _mapper.Map<TicketResponseDto>(ticket);
         }
     }
 }
