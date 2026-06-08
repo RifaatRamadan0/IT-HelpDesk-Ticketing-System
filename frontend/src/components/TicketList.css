@@ -53,8 +53,8 @@
 /* header row */
 .tl-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
   margin-bottom: 18px;
   gap: 16px;
   flex-wrap: wrap;

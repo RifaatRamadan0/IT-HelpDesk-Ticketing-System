@@ -5,7 +5,7 @@ import {
   fetchCategories,
   SessionExpiredError,
 } from '../api/tickets'
-import { getRole, logout } from '../lib/auth'
+import { getRole } from '../lib/auth'
 import './TicketList.css'
 
 // Badge colour maps, ported from the design (data.js). Keyed by the name the
@@ -115,30 +115,19 @@ function TicketList() {
   const clearFilters = () =>
     setF((s) => ({ ...s, status: '', priority: '', category: '', agent: '' }))
 
-  async function handleLogout() {
-    await logout()
-    navigate('/login', { replace: true })
-  }
-
   return (
     <div className="tl-page">
       <div className="tl-shell">
-        <div className="tl-head">
-          <h1 className="tl-title">Tickets</h1>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {isEmp && (
-              <button
-                className="tl-btn tl-btn-primary"
-                onClick={() => navigate('/tickets/new')}
-              >
-                ➕ New ticket
-              </button>
-            )}
-            <button className="tl-btn" onClick={handleLogout}>
-              Log out
+        {isEmp && (
+          <div className="tl-head">
+            <button
+              className="tl-btn tl-btn-primary"
+              onClick={() => navigate('/tickets/new')}
+            >
+              ➕ New ticket
             </button>
           </div>
-        </div>
+        )}
 
         {error && <div className="tl-banner">⚠ {error}</div>}
 

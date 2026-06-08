@@ -22,7 +22,7 @@ function Login() {
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
       // Go to the Create Ticket screen; replace so Back doesn't return to login.
-      navigate('/tickets/new', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
