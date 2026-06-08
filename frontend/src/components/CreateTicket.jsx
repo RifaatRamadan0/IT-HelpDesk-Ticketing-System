@@ -129,6 +129,12 @@ function CreateTicket() {
                 <button className="ct-btn" onClick={reset}>
                   Submit another
                 </button>
+                <button
+                  className="ct-btn ct-btn-primary"
+                  onClick={() => navigate('/tickets')}
+                >
+                  View my tickets
+                </button>
               </div>
             </div>
           </div>

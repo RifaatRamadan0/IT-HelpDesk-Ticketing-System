@@ -63,6 +63,15 @@ namespace HelpDesk_API.Controllers
             return Ok(tickets);
         }
 
+        [HttpGet("mine")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> GetMyTickets()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var tickets = await _ticketService.GetByCreatedUserIdAsync(userId);
+            return Ok(tickets);
+        }
+
         [HttpPut("{id}")]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketRequestDto request)

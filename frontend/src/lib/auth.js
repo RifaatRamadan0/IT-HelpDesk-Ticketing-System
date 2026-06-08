@@ -35,3 +35,24 @@ export function logout() {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
 }
+
+// The backend builds claims with ClaimTypes.* (TokenService.cs), which serialize
+// into the JWT under these long WS-* URIs rather than short names like "role".
+const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+const NAME_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'
+
+// Returns the user's role ("Employee" | "Agent" | "Manager" | "Admin") or '' if
+// it can't be read. Used to decide which tickets endpoint to call.
+export function getRole() {
+  const token = getToken()
+  if (!token) return ''
+  const payload = decodePayload(token)
+  return payload?.[ROLE_CLAIM] ?? ''
+}
+
+export function getUserName() {
+  const token = getToken()
+  if (!token) return ''
+  const payload = decodePayload(token)
+  return payload?.[NAME_CLAIM] ?? ''
+}

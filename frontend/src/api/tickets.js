@@ -48,6 +48,57 @@ export function fetchPriorities() {
   return getLookup(PRIORITY_URL, 'priorities')
 }
 
+// The list a user is allowed to see depends on their role, and each role has its
+// own endpoint (the API authorizes them separately). Employees see the tickets
+// they created, Agents see ones assigned to them, Managers/Admins see all.
+function ticketsUrlForRole(role) {
+  switch (role) {
+    case 'Employee':
+      return `${TICKET_URL}/mine`
+    case 'Agent':
+      return `${TICKET_URL}/assigned`
+    case 'Manager':
+    case 'Admin':
+      return TICKET_URL
+    default:
+      return null
+  }
+}
+
+// Fetch a single ticket by id. Returns null on 404 so the UI can show a
+// "not found" state instead of a generic error.
+export async function fetchTicketById(id) {
+  const response = await fetch(`${TICKET_URL}/${id}`, { headers: authHeader() })
+  if (response.status === 401) {
+    logout()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error('Could not load this ticket.')
+  }
+  return response.json()
+}
+
+export async function fetchTickets(role) {
+  const url = ticketsUrlForRole(role)
+  if (!url) {
+    throw new Error('Your account role cannot view tickets.')
+  }
+
+  const response = await fetch(url, { headers: authHeader() })
+  if (response.status === 401) {
+    logout()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load tickets.')
+  }
+  return response.json()
+}
+
 export async function createTicket({ title, description, categoryId, priorityId }) {
   const response = await fetch(TICKET_URL, {
     method: 'POST',
