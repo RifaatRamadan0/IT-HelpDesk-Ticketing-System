@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
 import './Login.css'
 
 function Login() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -19,8 +21,8 @@ function Login() {
       const { accessToken, refreshToken } = await login(email, password)
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
-      // No dashboard route yet — confirm success for now.
-      alert('Signed in successfully!')
+      // Go to the Create Ticket screen; replace so Back doesn't return to login.
+      navigate('/tickets/new', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {

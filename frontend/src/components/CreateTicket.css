@@ -1,0 +1,384 @@
+/* Create Ticket form — styles ported from the design bundle's theme.css
+   (it-help-desk/project/theme.css). Tokens and component classes are scoped
+   under .ct-page so they don't collide with the login screen's styles. */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+.ct-page {
+  --font-hand: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --canvas: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --ink: #0f1729;
+  --ink-soft: #3b4453;
+  --muted: #707a8a;
+  --line: #e4e8ee;
+  --line-soft: #eceff3;
+
+  --primary: #2f6bed;
+  --primary-ink: #ffffff;
+  --primary-soft: #e7eefc;
+  --primary-hover: #2257cf;
+
+  --red: #d33f2d;
+  --red-bg: #fce4e1;
+  --blue-bg: #e7eefc;
+
+  --radius-card: 14px;
+  --radius-sm: 8px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+
+  min-height: 100%;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  padding: 32px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.ct-page * {
+  box-sizing: border-box;
+}
+
+.ct-shell {
+  width: 100%;
+  max-width: 920px;
+}
+
+/* card */
+.ct-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ct-card-body {
+  padding: 30px 34px;
+}
+
+/* headings */
+.ct-title {
+  font-family: var(--font-hand);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-size: 32px;
+  margin: 0;
+}
+
+.ct-subtitle {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 17px;
+  margin-top: 4px;
+}
+
+.ct-rule {
+  height: 0;
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 20px 0 26px;
+}
+
+/* fields */
+.ct-field {
+  margin-bottom: 22px;
+}
+
+.ct-label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 7px;
+}
+
+.ct-req {
+  color: var(--red);
+}
+
+.ct-input,
+.ct-textarea,
+.ct-select {
+  width: 100%;
+  font-family: var(--font-hand);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ct-input:focus,
+.ct-textarea:focus,
+.ct-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.ct-textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.ct-input::placeholder,
+.ct-textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* native select with custom chevron */
+.ct-select-wrap {
+  position: relative;
+}
+
+.ct-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+}
+
+.ct-select.is-placeholder {
+  color: var(--muted);
+}
+
+.ct-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ct-hint {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.ct-error {
+  color: var(--red);
+  font-size: 14px;
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+/* two-column row for category / priority */
+.ct-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+@media (max-width: 640px) {
+  .ct-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .ct-card-body {
+    padding: 24px 20px;
+  }
+}
+
+/* attachments dropzone */
+.ct-dropzone {
+  cursor: pointer;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ct-dropzone.is-drag {
+  border-color: var(--primary);
+  background: var(--blue-bg);
+}
+
+.ct-dropzone-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.ct-dropzone-sub {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ct-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.ct-file-row.is-big {
+  border-color: var(--red);
+}
+
+.ct-file-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.ct-file-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ct-file-over {
+  color: var(--red);
+}
+
+/* validation banner */
+.ct-banner {
+  margin-top: 22px;
+  padding: 12px 16px;
+  background: var(--red-bg);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+  color: var(--red);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+/* buttons */
+.ct-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.ct-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 14.5px;
+  padding: 9px 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 1px rgba(16, 24, 40, 0.03);
+  transition: background 0.15s, border-color 0.15s, transform 0.06s;
+}
+
+.ct-btn:hover {
+  background: var(--surface-2);
+  border-color: #d4dae2;
+}
+
+.ct-btn:active {
+  transform: translateY(0.5px);
+}
+
+.ct-btn-primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: var(--primary);
+  box-shadow: 0 1px 2px rgba(47, 107, 237, 0.25);
+  padding: 11px 24px;
+  font-size: 17px;
+}
+
+.ct-btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.ct-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.ct-btn-ghost:hover {
+  background: var(--surface-2);
+}
+
+.ct-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* success screen */
+.ct-success {
+  max-width: 640px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.ct-success-body {
+  padding: 44px 40px;
+}
+
+.ct-success-emoji {
+  font-size: 60px;
+}
+
+.ct-success-title {
+  font-family: var(--font-hand);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 34px;
+  margin: 10px 0 6px;
+}
+
+.ct-success-sub {
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.ct-ref {
+  margin: 26px auto;
+  display: inline-block;
+  padding: 16px 30px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+}
+
+.ct-ref-label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ct-ref-value {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.ct-success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
