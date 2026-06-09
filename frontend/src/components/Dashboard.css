@@ -274,6 +274,146 @@
   color: var(--ink-soft);
 }
 
+/* donut */
+.dash-donut {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.dash-donut-ring {
+  position: relative;
+  flex: none;
+}
+
+.dash-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-donut-total {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.dash-donut-cap {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dash-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 150px;
+  flex: 1;
+}
+
+.dash-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+}
+
+.dash-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.dash-legend-label {
+  font-weight: 600;
+  color: var(--ink-soft);
+  flex: 1;
+}
+
+.dash-legend-val {
+  font-weight: 700;
+  color: var(--muted);
+  flex: none;
+}
+
+/* agent performance */
+.dash-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #3d6fd1;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+
+.dash-perf-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 16px;
+}
+
+.dash-perf-name {
+  width: 120px;
+  flex: none;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-perf-val {
+  width: 92px;
+  flex: none;
+  text-align: right;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* recent activity */
+.dash-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 6px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.dash-activity-row:hover {
+  background: var(--surface-2);
+}
+
+.dash-activity-action {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 14.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-activity-time {
+  color: var(--muted);
+  font-size: 13.5px;
+  flex: none;
+}
+
 /* badges */
 .dash-badge {
   display: inline-flex;

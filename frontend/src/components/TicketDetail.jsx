@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { fetchTicketById, SessionExpiredError } from '../api/tickets'
+import {
+  fetchTicketById,
+  fetchCategories,
+  fetchPriorities,
+  updateTicket,
+  SessionExpiredError,
+} from '../api/tickets'
+import { getRole, getUserId } from '../lib/auth'
 import './TicketDetail.css'
 
 // Badge colour maps, ported from the design (data.js), keyed by the API's
@@ -68,14 +75,167 @@ function Person({ user }) {
   )
 }
 
+// Modal form to edit an Open ticket's title/description/category/priority.
+function EditTicketModal({ ticket, onClose, onSaved }) {
+  const navigate = useNavigate()
+  const [categories, setCategories] = useState([])
+  const [priorities, setPriorities] = useState([])
+  const [form, setForm] = useState({
+    title: ticket.title,
+    description: ticket.description,
+    category: String(ticket.categoryId),
+    priority: String(ticket.priorityId),
+  })
+  const [touched, setTouched] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([fetchCategories(), fetchPriorities()])
+      .then(([cats, pris]) => {
+        if (cancelled) return
+        setCategories(cats)
+        setPriorities(pris)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+        else setError(err.message)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [navigate])
+
+  const valid =
+    form.title.trim() && form.description.trim() && form.category && form.priority
+
+  async function handleSave() {
+    setTouched(true)
+    setError('')
+    if (!valid) return
+    setSaving(true)
+    try {
+      await updateTicket(ticket.id, {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        categoryId: Number(form.category),
+        priorityId: Number(form.priority),
+      })
+      onSaved()
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="td-modal-overlay" onClick={onClose}>
+      <div className="td-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="td-modal-head">
+          <h2 className="td-modal-title">Edit ticket #{ticket.id}</h2>
+          <button className="td-modal-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="td-modal-body">
+          <div className="td-field">
+            <label className="td-flabel">Title</label>
+            <input
+              className="td-input"
+              value={form.title}
+              onChange={(e) => set('title', e.target.value)}
+            />
+            {touched && !form.title.trim() && (
+              <div className="td-ferror">⚠ A title is required.</div>
+            )}
+          </div>
+
+          <div className="td-field">
+            <label className="td-flabel">Description</label>
+            <textarea
+              className="td-textarea"
+              rows={5}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
+            {touched && !form.description.trim() && (
+              <div className="td-ferror">⚠ A description is required.</div>
+            )}
+          </div>
+
+          <div className="td-field-grid">
+            <div className="td-field">
+              <label className="td-flabel">Category</label>
+              <select
+                className="td-select"
+                value={form.category}
+                onChange={(e) => set('category', e.target.value)}
+              >
+                <option value="">Select category</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="td-field">
+              <label className="td-flabel">Priority</label>
+              <select
+                className="td-select"
+                value={form.priority}
+                onChange={(e) => set('priority', e.target.value)}
+              >
+                <option value="">Select priority</option>
+                {priorities.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {error && <div className="td-banner">⚠ {error}</div>}
+
+          <div className="td-modal-actions">
+            <button className="td-btn" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              className="td-btn td-btn-primary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TicketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const role = getRole()
+  const userId = getUserId()
 
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notFound, setNotFound] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -103,6 +263,18 @@ function TicketDetail() {
       cancelled = true
     }
   }, [id, navigate])
+
+  // Re-fetch after a successful edit so the page reflects the new values and
+  // updated timestamp.
+  async function handleSaved() {
+    setEditing(false)
+    try {
+      const data = await fetchTicketById(id)
+      if (data) setTicket(data)
+    } catch (err) {
+      if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+    }
+  }
 
   const back = (
     <button className="td-back" onClick={() => navigate('/tickets')}>
@@ -149,6 +321,14 @@ function TicketDetail() {
   }
 
   const t = ticket
+  // Edit is only offered for an Open ticket the signed-in employee created —
+  // mirroring the server-side guard (ownership + isOpen) so the UI doesn't show
+  // an action the API would reject.
+  const canEdit =
+    role === 'Employee' &&
+    t.statusName === 'Open' &&
+    t.createdByUser?.id === userId
+
   return (
     <div className="td-page">
       <div className="td-shell">
@@ -163,7 +343,18 @@ function TicketDetail() {
                 <Badge value={t.statusName} cls={STATUS_META[t.statusName]} />
                 <Badge value={t.categoryName} cls="b-gray" />
               </div>
-              <h1 className="td-title">{t.title}</h1>
+              <div className="td-title-row">
+                <h1 className="td-title">{t.title}</h1>
+                {canEdit && (
+                  <button
+                    className="td-edit-btn"
+                    onClick={() => setEditing(true)}
+                    title="Edit ticket details"
+                  >
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
               <p className="td-desc">{t.description}</p>
             </div>
           </div>
@@ -202,6 +393,14 @@ function TicketDetail() {
             </div>
           </div>
         </div>
+
+        {editing && (
+          <EditTicketModal
+            ticket={t}
+            onClose={() => setEditing(false)}
+            onSaved={handleSaved}
+          />
+        )}
       </div>
     </div>
   )

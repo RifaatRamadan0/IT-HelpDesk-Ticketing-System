@@ -60,6 +60,17 @@ export async function logout() {
 // into the JWT under these long WS-* URIs rather than short names like "role".
 const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
 const NAME_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'
+const NAMEID_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+
+// The signed-in user's id (number), or null. Used to check ticket ownership
+// client-side (e.g. whether to show the Edit button).
+export function getUserId() {
+  const token = getToken()
+  if (!token) return null
+  const payload = decodePayload(token)
+  const raw = payload?.[NAMEID_CLAIM]
+  return raw == null ? null : Number(raw)
+}
 
 // Returns the user's role ("Employee" | "Agent" | "Manager" | "Admin") or '' if
 // it can't be read. Used to decide which tickets endpoint to call.

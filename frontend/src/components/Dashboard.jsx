@@ -19,9 +19,23 @@ const STATUS_META = {
 }
 const CLOSED = ['Resolved', 'Closed']
 const CAT_COLORS = ['#3d6fd1', '#6b4bc0', '#c97b1d', '#2f8a4e', '#c63a26', '#0d9488']
+const PRIO_COLORS = { Low: '#2f8a4e', Medium: '#c97b1d', High: '#c63a26', Critical: '#bf2418' }
 
 function firstName(name) {
   return (name || '').split(' ')[0]
+}
+
+function fullName(user) {
+  return user ? `${user.firstName} ${user.lastName}`.trim() : ''
+}
+
+function initials(name) {
+  return (name || '?')
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 }
 
 function formatShortDate(iso) {
@@ -30,6 +44,17 @@ function formatShortDate(iso) {
   return Number.isNaN(d.getTime())
     ? ''
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function relativeTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const s = (Date.now() - d.getTime()) / 1000
+  if (s < 60) return 'just now'
+  if (s < 3600) return Math.floor(s / 60) + 'm ago'
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago'
+  return Math.floor(s / 86400) + 'd ago'
 }
 
 function StatCard({ label, value, sub, accent }) {
@@ -78,6 +103,53 @@ function Bars({ data }) {
           <span className="dash-bar-value">{d.value}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+// SVG donut, ported from the design (charts.jsx Donut). Segments are drawn with
+// stroke-dasharray on stacked circles, rotated so the first slice starts at top.
+function Donut({ data, size = 170, thickness = 28 }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1
+  const r = (size - thickness) / 2
+  const c = size / 2
+  const circ = 2 * Math.PI * r
+  // Pure: each slice's length, and its start offset = sum of the slices before it.
+  const lens = data.map((d) => (d.value / total) * circ)
+  const offsets = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0))
+  return (
+    <div className="dash-donut">
+      <div className="dash-donut-ring" style={{ width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={c} cy={c} r={r} fill="none" stroke="var(--surface-2)" strokeWidth={thickness} />
+          {data.map((d, i) => (
+            <circle
+              key={d.label}
+              cx={c}
+              cy={c}
+              r={r}
+              fill="none"
+              stroke={d.color}
+              strokeWidth={thickness}
+              strokeDasharray={`${lens[i]} ${circ - lens[i]}`}
+              strokeDashoffset={-offsets[i]}
+            />
+          ))}
+        </svg>
+        <div className="dash-donut-center">
+          <div className="dash-donut-total">{total}</div>
+          <div className="dash-donut-cap">tickets</div>
+        </div>
+      </div>
+      <div className="dash-legend">
+        {data.map((d) => (
+          <div key={d.label} className="dash-legend-row">
+            <span className="dash-legend-dot" style={{ background: d.color }} />
+            <span className="dash-legend-label">{d.label}</span>
+            <span className="dash-legend-val">{d.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -156,6 +228,7 @@ function Dashboard() {
 
   const isEmployee = role === 'Employee'
   const isAgent = role === 'Agent'
+  const isManagerOrAdmin = !isEmployee && !isAgent
 
   return (
     <div className="dash-page">
@@ -200,7 +273,7 @@ function Dashboard() {
             <StatCard label="Pending" value={stats.pending} accent="#b07910" />
             <StatCard label="Resolved" value={stats.resolved} accent="#15924f" />
             <StatCard label="Critical" value={stats.critical} accent="#d33f2d" />
-            {!isAgent && (
+            {isManagerOrAdmin && (
               <StatCard
                 label="Avg resolution"
                 value={stats.avgResolution}
@@ -211,25 +284,37 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Manager / Admin breakdowns */}
-      {!isEmployee && !isAgent && <Breakdowns tickets={tickets} />}
-
-      {/* Recent / queue list */}
-      <div className="dash-card">
-        <div className="dash-card-head">
-          <h3 className="dash-card-title">
-            {isEmployee ? 'My recent tickets' : isAgent ? 'Active queue' : 'Recent tickets'}
-          </h3>
-          <button className="dash-link" onClick={() => navigate('/tickets')}>
-            View all →
-          </button>
+      {isManagerOrAdmin ? (
+        <>
+          <Breakdowns tickets={tickets} />
+          <div className="dash-grid-2">
+            <div className="dash-card">
+              <h3 className="dash-card-title">Agent Performance</h3>
+              <AgentPerformance tickets={tickets} />
+            </div>
+            <div className="dash-card">
+              <h3 className="dash-card-title">Recent Activity</h3>
+              <RecentActivity tickets={tickets} onOpen={open} />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="dash-card">
+          <div className="dash-card-head">
+            <h3 className="dash-card-title">
+              {isEmployee ? 'My recent tickets' : 'Active queue'}
+            </h3>
+            <button className="dash-link" onClick={() => navigate('/tickets')}>
+              View all →
+            </button>
+          </div>
+          {stats.recent.length === 0 ? (
+            <div className="dash-empty">No tickets to show yet.</div>
+          ) : (
+            stats.recent.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
+          )}
         </div>
-        {stats.recent.length === 0 ? (
-          <div className="dash-empty">No tickets to show yet.</div>
-        ) : (
-          stats.recent.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -247,11 +332,10 @@ function Breakdowns({ tickets }) {
     }))
   }, [tickets])
 
-  const prioColors = { Low: '#2f8a4e', Medium: '#c97b1d', High: '#c63a26', Critical: '#bf2418' }
   const prioData = ['Low', 'Medium', 'High', 'Critical'].map((p) => ({
     label: p,
     value: tickets.filter((t) => t.priorityName === p).length,
-    color: prioColors[p],
+    color: PRIO_COLORS[p],
   }))
 
   return (
@@ -262,10 +346,70 @@ function Breakdowns({ tickets }) {
       </div>
       <div className="dash-card">
         <h3 className="dash-card-title">By priority</h3>
-        <Bars data={prioData} />
+        <Donut data={prioData} />
       </div>
     </div>
   )
+}
+
+// Agent performance, derived from the all-tickets list: resolved count per
+// assignee. No dedicated endpoint needed.
+function AgentPerformance({ tickets }) {
+  const rows = useMemo(() => {
+    const map = new Map()
+    tickets.forEach((t) => {
+      if (!t.assignedToUser) return
+      const cur = map.get(t.assignedToUser.id) || { user: t.assignedToUser, resolved: 0 }
+      if (CLOSED.includes(t.statusName)) cur.resolved += 1
+      map.set(t.assignedToUser.id, cur)
+    })
+    return [...map.values()].sort((a, b) => b.resolved - a.resolved)
+  }, [tickets])
+
+  if (!rows.length) return <div className="dash-empty">No agents assigned yet.</div>
+  const max = Math.max(1, ...rows.map((r) => r.resolved))
+
+  return (
+    <div>
+      {rows.map((r) => (
+        <div key={r.user.id} className="dash-perf-row">
+          <span className="dash-avatar">{initials(fullName(r.user))}</span>
+          <span className="dash-perf-name">{fullName(r.user)}</span>
+          <div className="dash-bar-track">
+            <div
+              className="dash-bar-fill"
+              style={{ width: `${(r.resolved / max) * 100}%`, background: '#2f6bed' }}
+            />
+          </div>
+          <span className="dash-perf-val">{r.resolved} resolved</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Recent activity, derived from the most recently updated tickets (no audit-log
+// endpoint exists, so this reflects ticket updates rather than granular actions).
+function RecentActivity({ tickets, onOpen }) {
+  const items = useMemo(
+    () =>
+      [...tickets]
+        .sort((a, b) => new Date(b.updatedDate) - new Date(a.updatedDate))
+        .slice(0, 6),
+    [tickets],
+  )
+
+  if (!items.length) return <div className="dash-empty">No recent activity.</div>
+
+  return items.map((t) => (
+    <div key={t.id} className="dash-activity-row" onClick={() => onOpen(t.id)}>
+      <span className="dash-row-ref">#{t.id}</span>
+      <span className="dash-activity-action">
+        {t.statusName} · {t.title}
+      </span>
+      <span className="dash-activity-time">{relativeTime(t.updatedDate)}</span>
+    </div>
+  ))
 }
 
 export default Dashboard

@@ -128,3 +128,29 @@ export async function createTicket({ title, description, categoryId, priorityId 
   const id = location.split('/').filter(Boolean).pop()
   return { id }
 }
+
+// Edit an existing ticket. The API only allows the creating employee to update
+// it, and only while it's still Open (enforced in TicketService); a rejected
+// edit comes back as 400, surfaced here as a friendly message.
+export async function updateTicket(id, { title, description, categoryId, priorityId }) {
+  const response = await fetch(`${TICKET_URL}/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ title, description, categoryId, priorityId }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403) {
+    throw new Error('You can only edit tickets you created.')
+  }
+  if (!response.ok) {
+    // 400 from the API: not the owner, or the ticket is no longer Open.
+    throw new Error('This ticket can no longer be edited.')
+  }
+}
