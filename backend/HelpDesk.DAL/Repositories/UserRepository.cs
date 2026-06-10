@@ -25,5 +25,56 @@ namespace HelpDesk.DAL.Repositories
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
+
+        public async Task<ICollection<User>> GetAllAsync()
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .OrderBy(u => u.Id)
+                .ToListAsync();
+        }
+
+        public async Task<User?> GetByIdAsync(int id)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            return await _context.Users.AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<bool> HasTicketsAsync(int userId)
+        {
+            return await _context.Tickets.AnyAsync(t =>
+                t.CreatedByUserId == userId ||
+                t.AssignedToUserId == userId ||
+                t.AssignedByUserId == userId);
+        }
+
+        public async Task<int> CreateAsync(User user)
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+            return user.Id;
+        }
+
+        public async Task<bool> UpdateAsync(User user)
+        {
+            _context.Users.Update(user);
+            return (await _context.SaveChangesAsync()) > 0;
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return false;
+
+            _context.Users.Remove(user);
+            return (await _context.SaveChangesAsync()) > 0;
+        }
     }
 }

@@ -10,11 +10,17 @@ namespace HelpDesk.BLL.Mapping
         {
             CreateMap<User, UserSummaryDto>();
 
+            CreateMap<User, UserListItemDto>()
+                .ForMember(d => d.RoleName, o => o.MapFrom(s => s.Role.RoleName));
+
             CreateMap<Category, CategoryDto>()
                 .ForMember(d => d.Name, o => o.MapFrom(s => s.CategoryName));
 
             CreateMap<Priority, PriorityDto>()
                 .ForMember(d => d.Name, o => o.MapFrom(s => s.PriorityName));
+
+            CreateMap<Role, RoleDto>()
+                .ForMember(d => d.Name, o => o.MapFrom(s => s.RoleName));
 
             CreateMap<Ticket, TicketResponseDto>()
                 .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.CategoryName))

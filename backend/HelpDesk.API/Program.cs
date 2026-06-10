@@ -42,12 +42,15 @@ namespace HelpDesk_API
             builder.Services.AddScoped<ITicketRepository, TicketRepository>();
             builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
             builder.Services.AddScoped<IPriorityRepository, PriorityRepository>();
+            builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<ITicketService, TicketService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IPriorityService, PriorityService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IRoleService, RoleService>();
 
             builder.Services.AddAutoMapper(cfg =>
                 cfg.AddMaps(typeof(HelpDesk.BLL.Mapping.MappingProfile).Assembly));

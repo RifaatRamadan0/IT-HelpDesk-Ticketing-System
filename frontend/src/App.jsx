@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard'
 import CreateTicket from './components/CreateTicket'
 import TicketList from './components/TicketList'
 import TicketDetail from './components/TicketDetail'
+import Users from './components/Users'
 import Placeholder from './components/Placeholder'
 import ProtectedRoute from './components/ProtectedRoute'
 import { isLoggedIn } from './lib/auth'
@@ -32,7 +33,7 @@ function App() {
         <Route path="/notifications" element={<Placeholder title="Notifications" icon="🔔" />} />
         <Route path="/reports" element={<Placeholder title="Reports" icon="📊" />} />
         <Route path="/kb" element={<Placeholder title="Knowledge Base" icon="📚" />} />
-        <Route path="/users" element={<Placeholder title="Users" icon="👥" />} />
+        <Route path="/users" element={<Users />} />
         <Route path="/admin" element={<Placeholder title="Admin Settings" icon="⚙️" />} />
         <Route path="/profile" element={<Placeholder title="Profile" icon="👤" />} />
       </Route>
