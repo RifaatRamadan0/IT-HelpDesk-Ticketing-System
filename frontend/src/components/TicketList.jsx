@@ -23,6 +23,15 @@ const STATUS_META = {
   Resolved: 'b-green',
   Closed: 'b-gray',
 }
+// Column accent (left border + dot) for the Kanban board, mirroring the
+// design's STATUS_ACCENT map. Keyed by the API's statusName.
+const STATUS_ACCENT = {
+  Open: 'var(--blue)',
+  'In Progress': 'var(--amber)',
+  Pending: 'var(--purple)',
+  Resolved: 'var(--green)',
+  Closed: 'var(--gray-ink)',
+}
 
 const PRIORITY_ORDER = ['Low', 'Medium', 'High', 'Critical']
 const STATUS_ORDER = ['Open', 'In Progress', 'Pending', 'Resolved', 'Closed']
@@ -52,10 +61,76 @@ function Badge({ value, cls }) {
   return <span className={'tl-badge ' + (cls || 'b-gray')}>{value}</span>
 }
 
+// Kanban board: tickets grouped into a column per status. Read-only by design —
+// cards click through to the detail view. There's no drag-to-change-status yet;
+// status moves go through the detail view's workflow actions, which the API
+// gates by role (managers/admins only board this view).
+function TicketBoard({ rows, onOpen }) {
+  return (
+    <div className="tl-board">
+      {STATUS_ORDER.map((status) => {
+        const items = rows.filter((t) => t.statusName === status)
+        const accent = STATUS_ACCENT[status] || 'var(--muted)'
+        return (
+          <div className="tl-col" key={status}>
+            <div className="tl-col-head">
+              <span className="tl-col-dot" style={{ background: accent }} />
+              <span className="tl-col-name">{status}</span>
+              <span className="tl-col-count">{items.length}</span>
+            </div>
+            <div className="tl-col-body">
+              {items.map((t) => {
+                const agent = fullName(t.assignedToUser)
+                const category =
+                  t.categoryName === 'Access Request' ? 'Access' : t.categoryName
+                return (
+                  <div
+                    className="tl-board-card"
+                    key={t.id}
+                    style={{ borderLeftColor: accent }}
+                    onClick={() => onOpen(t.id)}
+                  >
+                    <div className="tl-board-top">
+                      <span className="tl-ref">#{t.id}</span>
+                      <Badge
+                        value={t.priorityName}
+                        cls={PRIORITY_META[t.priorityName]}
+                      />
+                    </div>
+                    <div className="tl-board-title">{t.title}</div>
+                    <div className="tl-board-foot">
+                      <Badge value={category} cls="b-gray" />
+                      {agent ? (
+                        <span className="tl-agent">
+                          <span className="tl-avatar">{initials(agent)}</span>
+                          {t.assignedToUser.firstName}
+                        </span>
+                      ) : (
+                        <span className="tl-muted">Unassigned</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {items.length === 0 && (
+                <div className="tl-col-empty">No tickets</div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function TicketList() {
   const navigate = useNavigate()
   const role = getRole()
   const isEmp = role === 'Employee'
+  // Only Managers/Admins get the Kanban board; everyone else stays on the table.
+  const canBoard = role === 'Manager' || role === 'Admin'
+  const [view, setView] = useState(canBoard ? 'board' : 'list')
+  const boardView = canBoard && view === 'board'
 
   const [tickets, setTickets] = useState([])
   const [categories, setCategories] = useState([])
@@ -99,7 +174,9 @@ function TicketList() {
   const rows = useMemo(() => {
     const q = f.search.trim().toLowerCase()
     return tickets.filter((t) => {
-      if (f.status && t.statusName !== f.status) return false
+      // In board view the columns ARE the statuses, so the status filter is
+      // hidden and not applied.
+      if (!boardView && f.status && t.statusName !== f.status) return false
       if (f.priority && t.priorityName !== f.priority) return false
       if (f.category && t.categoryName !== f.category) return false
       if (f.agent && fullName(t.assignedToUser) !== f.agent) return false
@@ -109,9 +186,9 @@ function TicketList() {
       }
       return true
     })
-  }, [tickets, f])
+  }, [tickets, f, boardView])
 
-  const active = f.status || f.priority || f.category || f.agent
+  const active = (f.status && !boardView) || f.priority || f.category || f.agent
   const clearFilters = () =>
     setF((s) => ({ ...s, status: '', priority: '', category: '', agent: '' }))
 
@@ -133,21 +210,40 @@ function TicketList() {
 
         {/* Filters */}
         <div className="tl-card tl-filters">
-          <div className="tl-select-wrap">
-            <select
-              className={'tl-select' + (f.status ? '' : ' is-placeholder')}
-              value={f.status}
-              onChange={(e) => setK('status', e.target.value)}
-            >
-              <option value="">All statuses</option>
-              {STATUS_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+          {canBoard && (
+            <div className="tl-toggle">
+              {[
+                ['board', '▦ Board'],
+                ['list', '≣ List'],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  className={'tl-toggle-btn' + (view === key ? ' is-active' : '')}
+                  onClick={() => setView(key)}
+                >
+                  {label}
+                </button>
               ))}
-            </select>
-            <span className="tl-chevron">▼</span>
-          </div>
+            </div>
+          )}
+
+          {!boardView && (
+            <div className="tl-select-wrap">
+              <select
+                className={'tl-select' + (f.status ? '' : ' is-placeholder')}
+                value={f.status}
+                onChange={(e) => setK('status', e.target.value)}
+              >
+                <option value="">All statuses</option>
+                {STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <span className="tl-chevron">▼</span>
+            </div>
+          )}
 
           <div className="tl-select-wrap">
             <select
@@ -219,7 +315,13 @@ function TicketList() {
           </span>
         </div>
 
+        {/* Board view (Manager/Admin) */}
+        {!loading && boardView && (
+          <TicketBoard rows={rows} onOpen={(tid) => navigate(`/tickets/${tid}`)} />
+        )}
+
         {/* Table */}
+        {!boardView && (
         <div className="tl-card">
           <div className="tl-table-wrap">
             <table className="tl-table">
@@ -317,6 +419,15 @@ function TicketList() {
             </div>
           )}
         </div>
+        )}
+
+        {loading && boardView && (
+          <div className="tl-card">
+            <div className="tl-empty">
+              <div className="tl-empty-title">Loading tickets…</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

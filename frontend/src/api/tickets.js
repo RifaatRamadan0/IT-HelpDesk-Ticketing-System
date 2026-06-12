@@ -129,6 +129,33 @@ export async function createTicket({ title, description, categoryId, priorityId 
   return { id }
 }
 
+// Move a ticket to a new status. The API enforces a role-specific state machine
+// (e.g. an Agent may only move In Progress -> Pending on a ticket assigned to
+// them); an illegal transition comes back as 400, surfaced here as a friendly
+// message. statusId is the TicketStatus enum value (Open=1 … Closed=5).
+export async function updateTicketStatus(id, statusId) {
+  const response = await fetch(`${TICKET_URL}/${id}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ statusId }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403) {
+    throw new Error('Your role cannot change this ticket’s status.')
+  }
+  if (!response.ok) {
+    // 400 from the API: the transition isn't allowed from the current status.
+    throw new Error('That status change isn’t allowed for this ticket.')
+  }
+}
+
 // Edit an existing ticket. The API only allows the creating employee to update
 // it, and only while it's still Open (enforced in TicketService); a rejected
 // edit comes back as 400, surfaced here as a friendly message.

@@ -292,6 +292,26 @@
   border-color: #2257cf;
 }
 
+/* workflow card */
+.td-btn-block {
+  width: 100%;
+  justify-content: center;
+  flex: initial;
+}
+
+.td-workflow-hint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.td-banner-sm {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  font-size: 13.5px;
+}
+
 .td-btn:disabled {
   opacity: 0.6;
   cursor: default;

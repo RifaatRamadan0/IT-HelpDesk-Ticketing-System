@@ -61,6 +61,60 @@ namespace HelpDesk.BLL.Services
 
         }
 
+        // Status changes follow a role-specific state machine. A move is legal
+        // only if the (role, current status, target status) tuple is one of the
+        // allowed transitions below; everything else is rejected (controller maps
+        // that to 400). Resource ownership is enforced too — an Agent may only act
+        // on tickets assigned to them, an Employee only on tickets they created —
+        // matching the authorization model used elsewhere in this service.
+        public async Task<bool> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole)
+        {
+            if (!Enum.IsDefined(typeof(TicketStatus), statusId))
+                return false;
+
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                return false;
+
+            var from = (TicketStatus)ticket.StatusId;
+            var to = (TicketStatus)statusId;
+
+            bool allowed = requestingUserRole switch
+            {
+                // Manager/Admin start the work (only once an agent is assigned)
+                // and close out a resolved ticket.
+                "Admin" or "Manager" =>
+                    (from == TicketStatus.Open && to == TicketStatus.InProgress && ticket.AssignedToUserId != null)
+                    || (from == TicketStatus.Resolved && to == TicketStatus.Closed),
+
+                // The assigned agent hands finished work back for confirmation —
+                // they cannot resolve directly; it parks in Pending.
+                "Agent" =>
+                    from == TicketStatus.InProgress && to == TicketStatus.Pending
+                    && ticket.AssignedToUserId == requestingUserId,
+
+                // The requester confirms the fix, moving Pending -> Resolved.
+                "Employee" =>
+                    from == TicketStatus.Pending && to == TicketStatus.Resolved
+                    && ticket.CreatedByUserId == requestingUserId,
+
+                _ => false
+            };
+
+            if (!allowed)
+                return false;
+
+            ticket.StatusId = statusId;
+            ticket.UpdatedDate = DateTime.UtcNow;
+
+            // The only way into Resolved is the employee's confirmation above;
+            // stamp the resolution time. Resolved -> Closed keeps that timestamp.
+            if (to == TicketStatus.Resolved)
+                ticket.ResolvedDate ??= DateTime.UtcNow;
+
+            return await _ticketRepository.UpdateAsync(ticket);
+        }
+
         public async Task<bool> DeleteAsync(int ticketId, int requestingUserId)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);

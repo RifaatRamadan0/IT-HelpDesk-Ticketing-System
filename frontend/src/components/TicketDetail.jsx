@@ -5,6 +5,7 @@ import {
   fetchCategories,
   fetchPriorities,
   updateTicket,
+  updateTicketStatus,
   SessionExpiredError,
 } from '../api/tickets'
 import { getRole, getUserId } from '../lib/auth'
@@ -25,6 +26,8 @@ const STATUS_META = {
   Resolved: 'b-green',
   Closed: 'b-gray',
 }
+// TicketStatus enum values (must match the backend / Status seed).
+const STATUS_ID = { Open: 1, 'In Progress': 2, Pending: 3, Resolved: 4, Closed: 5 }
 
 function formatDateTime(iso) {
   if (!iso) return '—'
@@ -236,6 +239,8 @@ function TicketDetail() {
   const [error, setError] = useState('')
   const [notFound, setNotFound] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -264,15 +269,38 @@ function TicketDetail() {
     }
   }, [id, navigate])
 
-  // Re-fetch after a successful edit so the page reflects the new values and
-  // updated timestamp.
-  async function handleSaved() {
-    setEditing(false)
+  // Re-fetch the ticket so the page reflects new values, status and timestamps.
+  async function refresh() {
     try {
       const data = await fetchTicketById(id)
       if (data) setTicket(data)
     } catch (err) {
       if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+    }
+  }
+
+  async function handleSaved() {
+    setEditing(false)
+    await refresh()
+  }
+
+  // Drive a role-specific status transition (Agent: In Progress -> Pending,
+  // Employee: Pending -> Resolved). The API is the source of truth on whether
+  // the move is legal; we just surface its rejection.
+  async function changeStatus(targetName) {
+    setActionError('')
+    setWorking(true)
+    try {
+      await updateTicketStatus(id, STATUS_ID[targetName])
+      await refresh()
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setActionError(err.message)
+    } finally {
+      setWorking(false)
     }
   }
 
@@ -328,6 +356,21 @@ function TicketDetail() {
     role === 'Employee' &&
     t.statusName === 'Open' &&
     t.createdByUser?.id === userId
+
+  // Workflow actions mirror the backend state machine so we never show an action
+  // the API would reject. Agent hands finished work back for confirmation; the
+  // requester confirms the fix.
+  const canAgentHandoff =
+    role === 'Agent' &&
+    t.statusName === 'In Progress' &&
+    t.assignedToUser?.id === userId
+
+  const canConfirmFix =
+    role === 'Employee' &&
+    t.statusName === 'Pending' &&
+    t.createdByUser?.id === userId
+
+  const hasWorkflow = canAgentHandoff || canConfirmFix
 
   return (
     <div className="td-page">
@@ -391,6 +434,50 @@ function TicketDetail() {
                 )}
               </div>
             </div>
+
+            {hasWorkflow && (
+              <div className="td-card">
+                <div className="td-side-body">
+                  <h2 className="td-side-title">Workflow</h2>
+
+                  {canAgentHandoff && (
+                    <>
+                      <p className="td-workflow-hint">
+                        Finished working on this ticket? Send it to the requester to
+                        confirm the fix.
+                      </p>
+                      <button
+                        className="td-btn td-btn-primary td-btn-block"
+                        onClick={() => changeStatus('Pending')}
+                        disabled={working}
+                      >
+                        {working ? 'Working…' : '✅ Mark as done — request confirmation'}
+                      </button>
+                    </>
+                  )}
+
+                  {canConfirmFix && (
+                    <>
+                      <p className="td-workflow-hint">
+                        Your agent marked this resolved. Confirm the issue is fixed to
+                        close it out.
+                      </p>
+                      <button
+                        className="td-btn td-btn-primary td-btn-block"
+                        onClick={() => changeStatus('Resolved')}
+                        disabled={working}
+                      >
+                        {working ? 'Working…' : '✅ Confirm the fix — mark resolved'}
+                      </button>
+                    </>
+                  )}
+
+                  {actionError && (
+                    <div className="td-banner td-banner-sm">⚠ {actionError}</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

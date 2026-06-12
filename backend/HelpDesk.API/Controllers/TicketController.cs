@@ -90,6 +90,19 @@ namespace HelpDesk_API.Controllers
             return NoContent();
         }
 
+        [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin,Manager,Agent,Employee")]
+        public async Task<IActionResult> UpdateTicketStatus(int id, [FromBody] UpdateTicketStatusRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var isUpdated = await _ticketService.UpdateStatusAsync(id, request.StatusId, userId, role);
+            if (!isUpdated)
+                return BadRequest("Failed to update ticket status.");
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> DeleteTicket(int id)
