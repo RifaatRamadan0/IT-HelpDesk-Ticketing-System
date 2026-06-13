@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.DTOs;
+﻿using HelpDesk.BLL.Common;
+using HelpDesk.BLL.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,7 @@ namespace HelpDesk.BLL.Interfaces
         Task<int> CreateAsync(CreateTicketRequestDto request, int createdByUserId);
         Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId);
         Task<bool> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole);
+        Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId);
         Task<bool> DeleteAsync(int ticketId, int requestingUserId);
         Task<TicketResponseDto?> GetByIdAsync(int ticketId, int requestingUserId, string? requestingUserRole);
         Task<ICollection<TicketResponseDto>> GetAllAsync();

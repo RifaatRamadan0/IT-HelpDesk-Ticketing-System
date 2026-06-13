@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.DTOs;
+﻿using HelpDesk.BLL.Common;
+using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -101,6 +102,23 @@ namespace HelpDesk_API.Controllers
             if (!isUpdated)
                 return BadRequest("Failed to update ticket status.");
             return NoContent();
+        }
+
+        [HttpPut("{id}/assign")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> AssignTicket(int id, [FromBody] AssignTicketRequestDto request)
+        {
+            var assignedByUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var result = await _ticketService.AssignTicketAsync(id, request.AgentUserId, assignedByUserId);
+            return result switch
+            {
+                AssignTicketResult.Assigned => NoContent(),
+                AssignTicketResult.TicketNotFound => NotFound(),
+                AssignTicketResult.TicketClosed => Conflict("This ticket is resolved or closed and can't be assigned."),
+                AssignTicketResult.InvalidAgent => BadRequest("The selected user is not an active agent."),
+                _ => StatusCode(500)
+            };
         }
 
         [HttpDelete("{id}")]

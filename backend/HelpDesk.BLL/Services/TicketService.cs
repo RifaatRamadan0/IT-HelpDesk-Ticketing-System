@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using HelpDesk.BLL.Common;
 using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using HelpDesk.DAL.Interfaces;
@@ -15,11 +16,13 @@ namespace HelpDesk.BLL.Services
     public class TicketService : ITicketService
     {
         private readonly ITicketRepository _ticketRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
 
-        public TicketService(ITicketRepository ticketRepository, IMapper mapper)
+        public TicketService(ITicketRepository ticketRepository, IUserRepository userRepository, IMapper mapper)
         {
             _ticketRepository = ticketRepository;
+            _userRepository = userRepository;
             _mapper = mapper;
         }
 
@@ -113,6 +116,28 @@ namespace HelpDesk.BLL.Services
                 ticket.ResolvedDate ??= DateTime.UtcNow;
 
             return await _ticketRepository.UpdateAsync(ticket);
+        }
+
+        public async Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                return AssignTicketResult.TicketNotFound;
+
+            var status = (TicketStatus)ticket.StatusId;
+            if (status == TicketStatus.Resolved || status == TicketStatus.Closed)
+                return AssignTicketResult.TicketClosed;
+
+            var agent = await _userRepository.GetByIdAsync(agentUserId);
+            if (agent == null || !agent.IsActive || agent.Role?.RoleName != "Agent")
+                return AssignTicketResult.InvalidAgent;
+
+            ticket.AssignedToUserId = agentUserId;
+            ticket.AssignedByUserId = assignedByUserId;
+            ticket.UpdatedDate = DateTime.UtcNow;
+
+            await _ticketRepository.UpdateAsync(ticket);
+            return AssignTicketResult.Assigned;
         }
 
         public async Task<bool> DeleteAsync(int ticketId, int requestingUserId)
