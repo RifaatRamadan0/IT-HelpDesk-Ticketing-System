@@ -9,7 +9,7 @@ namespace HelpDesk_API.Controllers
 {
     [Route("api/User")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -20,13 +20,23 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllUsers()
         {
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
 
+        [HttpGet("agents")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetAgents()
+        {
+            var agents = await _userService.GetAgentsAsync();
+            return Ok(agents);
+        }
+
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequestDto request)
         {
             var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -38,6 +48,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequestDto request)
         {
             var updated = await _userService.UpdateAsync(id, request);
@@ -47,6 +58,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

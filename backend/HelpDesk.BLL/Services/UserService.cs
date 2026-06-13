@@ -27,6 +27,12 @@ namespace HelpDesk.BLL.Services
             return _mapper.Map<List<UserListItemDto>>(users);
         }
 
+        public async Task<ICollection<UserSummaryDto>> GetAgentsAsync()
+        {
+            var agents = await _userRepository.GetActiveAgentsAsync();
+            return _mapper.Map<List<UserSummaryDto>>(agents);
+        }
+
         public async Task<int?> CreateAsync(CreateUserRequestDto request, int createdByUserId)
         {
             if (await _userRepository.EmailExistsAsync(request.Email))

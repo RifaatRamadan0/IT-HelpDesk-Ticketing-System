@@ -34,6 +34,16 @@ namespace HelpDesk.DAL.Repositories
                 .ToListAsync();
         }
 
+        public async Task<ICollection<User>> GetActiveAgentsAsync()
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Where(u => u.IsActive && u.Role.RoleName == "Agent")
+                .OrderBy(u => u.FirstName)
+                .ThenBy(u => u.LastName)
+                .ToListAsync();
+        }
+
         public async Task<User?> GetByIdAsync(int id)
         {
             return await _context.Users

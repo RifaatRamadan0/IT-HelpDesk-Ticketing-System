@@ -11,6 +11,7 @@ namespace HelpDesk.DAL.Interfaces
     {
         Task<User?> GetByEmailAsync(string email);
         Task<ICollection<User>> GetAllAsync();
+        Task<ICollection<User>> GetActiveAgentsAsync();
         Task<User?> GetByIdAsync(int id);
         Task<bool> EmailExistsAsync(string email);
         Task<bool> HasTicketsAsync(int userId);

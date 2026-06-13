@@ -9,6 +9,9 @@ namespace HelpDesk.BLL.Interfaces
     {
         Task<ICollection<UserListItemDto>> GetAllAsync();
 
+        // Active agents, projected to a minimal summary for assignment pickers.
+        Task<ICollection<UserSummaryDto>> GetAgentsAsync();
+
         Task<int?> CreateAsync(CreateUserRequestDto request, int createdByUserId);
 
         Task<bool> UpdateAsync(int id, UpdateUserRequestDto request);
