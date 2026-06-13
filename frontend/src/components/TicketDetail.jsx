@@ -4,6 +4,8 @@ import {
   fetchTicketById,
   fetchCategories,
   fetchPriorities,
+  fetchAgents,
+  assignTicket,
   updateTicket,
   updateTicketStatus,
   SessionExpiredError,
@@ -234,6 +236,8 @@ function TicketDetail() {
   const role = getRole()
   const userId = getUserId()
 
+  const isManager = role === 'Manager' || role === 'Admin'
+
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -241,6 +245,12 @@ function TicketDetail() {
   const [editing, setEditing] = useState(false)
   const [working, setWorking] = useState(false)
   const [actionError, setActionError] = useState('')
+
+  // Assignment (Manager/Admin only).
+  const [agents, setAgents] = useState([])
+  const [selectedAgentId, setSelectedAgentId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+  const [assignError, setAssignError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -251,7 +261,7 @@ function TicketDetail() {
           setNotFound(true)
           return
         }
-        setTicket(data)
+        applyTicket(data)
       })
       .catch((err) => {
         if (cancelled) return
@@ -269,11 +279,37 @@ function TicketDetail() {
     }
   }, [id, navigate])
 
+  // Managers/Admins need the agent list to populate the assignment picker. A
+  // failed load here shouldn't break the page — the picker just stays empty.
+  useEffect(() => {
+    if (!isManager) return
+    let cancelled = false
+    fetchAgents()
+      .then((data) => {
+        if (!cancelled) setAgents(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isManager, navigate])
+
+  // Set the ticket and preselect its current assignee in the picker, so the
+  // dropdown reflects reality and "Reassign" starts from who's assigned now.
+  // Done where the data arrives (not in an effect) to avoid a cascading render.
+  function applyTicket(data) {
+    setTicket(data)
+    setSelectedAgentId(data.assignedToUser ? String(data.assignedToUser.id) : '')
+  }
+
   // Re-fetch the ticket so the page reflects new values, status and timestamps.
   async function refresh() {
     try {
       const data = await fetchTicketById(id)
-      if (data) setTicket(data)
+      if (data) applyTicket(data)
     } catch (err) {
       if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
     }
@@ -301,6 +337,26 @@ function TicketDetail() {
       setActionError(err.message)
     } finally {
       setWorking(false)
+    }
+  }
+
+  // Assign (or reassign) the ticket to the chosen agent, then re-fetch so the
+  // "Assigned to" panel and any unlocked status actions update.
+  async function handleAssign() {
+    if (!selectedAgentId) return
+    setAssignError('')
+    setAssigning(true)
+    try {
+      await assignTicket(id, Number(selectedAgentId))
+      await refresh()
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setAssignError(err.message)
+    } finally {
+      setAssigning(false)
     }
   }
 
@@ -372,6 +428,17 @@ function TicketDetail() {
 
   const hasWorkflow = canAgentHandoff || canConfirmFix
 
+  // Manager/Admin assignment mirrors the backend: a ticket can be (re)assigned
+  // while it isn't in a terminal state. The "Start work" action is the payoff of
+  // assignment — the status machine only allows Open -> In Progress once someone
+  // is assigned, so we gate the button on that.
+  const canAssign =
+    isManager && t.statusName !== 'Resolved' && t.statusName !== 'Closed'
+  const canStartWork =
+    isManager && t.statusName === 'Open' && t.assignedToUser != null
+  const currentAssigneeId = t.assignedToUser?.id ?? null
+  const selectionChanged = selectedAgentId !== '' && Number(selectedAgentId) !== currentAssigneeId
+
   return (
     <div className="td-page">
       <div className="td-shell">
@@ -434,6 +501,71 @@ function TicketDetail() {
                 )}
               </div>
             </div>
+
+            {canAssign && (
+              <div className="td-card">
+                <div className="td-side-body">
+                  <h2 className="td-side-title">Assignment</h2>
+
+                  <div className="td-field">
+                    <label className="td-flabel">
+                      {t.assignedToUser ? 'Reassign to' : 'Assign to'}
+                    </label>
+                    <select
+                      className="td-select"
+                      value={selectedAgentId}
+                      onChange={(e) => setSelectedAgentId(e.target.value)}
+                      disabled={assigning || agents.length === 0}
+                    >
+                      <option value="">
+                        {agents.length === 0 ? 'No agents available' : 'Select an agent'}
+                      </option>
+                      {agents.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.firstName} {a.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    className="td-btn td-btn-primary td-btn-block"
+                    onClick={handleAssign}
+                    disabled={assigning || !selectionChanged}
+                  >
+                    {assigning
+                      ? 'Assigning…'
+                      : t.assignedToUser
+                        ? 'Reassign ticket'
+                        : 'Assign ticket'}
+                  </button>
+
+                  {canStartWork && (
+                    <>
+                      <div className="td-rule" />
+                      <p className="td-workflow-hint">
+                        An agent is assigned. Start work to move this ticket to In
+                        Progress.
+                      </p>
+                      <button
+                        className="td-btn td-btn-primary td-btn-block"
+                        onClick={() => changeStatus('In Progress')}
+                        disabled={working}
+                      >
+                        {working ? 'Working…' : '▶ Start work'}
+                      </button>
+                      {actionError && (
+                        <div className="td-banner td-banner-sm">⚠ {actionError}</div>
+                      )}
+                    </>
+                  )}
+
+                  {assignError && (
+                    <div className="td-banner td-banner-sm">⚠ {assignError}</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {hasWorkflow && (
               <div className="td-card">

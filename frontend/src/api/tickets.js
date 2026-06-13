@@ -8,6 +8,7 @@ const API_ROOT = 'http://localhost:5175/api'
 const TICKET_URL = `${API_ROOT}/Ticket`
 const CATEGORY_URL = `${API_ROOT}/Category`
 const PRIORITY_URL = `${API_ROOT}/Priority`
+const USER_URL = `${API_ROOT}/User`
 
 // Thrown when the server rejects our token. The UI uses this to bounce the
 // user back to /login instead of showing a dead-end error.
@@ -153,6 +154,53 @@ export async function updateTicketStatus(id, statusId) {
   if (!response.ok) {
     // 400 from the API: the transition isn't allowed from the current status.
     throw new Error('That status change isn’t allowed for this ticket.')
+  }
+}
+
+// Active agents for the assignment picker. Manager/Admin only (the API
+// authorizes GET /User/agents for those roles); returns
+// [{ id, firstName, lastName }].
+export async function fetchAgents() {
+  const response = await fetch(`${USER_URL}/agents`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load the list of agents.')
+  }
+  return response.json()
+}
+
+// Assign (or reassign) a ticket to an agent. Manager/Admin only. The API maps
+// each distinct failure to its own status (see AssignTicketResult), so we can
+// give the user a precise reason rather than one generic error.
+export async function assignTicket(id, agentUserId) {
+  const response = await fetch(`${TICKET_URL}/${id}/assign`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ agentUserId }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403) {
+    throw new Error('Only managers and admins can assign tickets.')
+  }
+  if (response.status === 404) {
+    throw new Error('This ticket no longer exists.')
+  }
+  if (response.status === 409) {
+    throw new Error('This ticket is resolved or closed and can’t be assigned.')
+  }
+  if (!response.ok) {
+    // 400: the selected user isn't an active agent.
+    throw new Error('Please choose an active agent to assign.')
   }
 }
 
