@@ -230,6 +230,54 @@ function EditTicketModal({ ticket, onClose, onSaved }) {
   )
 }
 
+// Assignment modal: pick an agent from a list of avatar rows. Clicking a row
+// assigns immediately (matching the design), marking the current assignee with
+// a "✓ current" tag.
+function AssignTicketModal({ ticket, agents, assigning, error, onAssign, onClose }) {
+  const currentId = ticket.assignedToUser?.id ?? null
+  return (
+    <div className="td-modal-overlay" onClick={onClose}>
+      <div className="td-modal td-modal-narrow" onClick={(e) => e.stopPropagation()}>
+        <div className="td-modal-head">
+          <h2 className="td-modal-title">Assign ticket #{ticket.id}</h2>
+          <button className="td-modal-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="td-modal-body">
+          <p className="td-workflow-hint">Choose an agent to handle this ticket.</p>
+
+          {agents.length === 0 ? (
+            <div className="td-unassigned">No active agents are available.</div>
+          ) : (
+            agents.map((a) => {
+              const name = fullName(a)
+              const isCurrent = a.id === currentId
+              return (
+                <button
+                  key={a.id}
+                  className="td-agent-row"
+                  onClick={() => onAssign(a.id)}
+                  disabled={assigning}
+                >
+                  <span className="td-avatar td-avatar-lg">{initials(name)}</span>
+                  <span className="td-agent-info">
+                    <span className="td-agent-name">{name}</span>
+                    <span className="td-agent-title">IT Support Agent</span>
+                  </span>
+                  {isCurrent && <span className="td-agent-current">✓ current</span>}
+                </button>
+              )
+            })
+          )}
+
+          {error && <div className="td-banner td-banner-sm">⚠ {error}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TicketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -248,7 +296,7 @@ function TicketDetail() {
 
   // Assignment (Manager/Admin only).
   const [agents, setAgents] = useState([])
-  const [selectedAgentId, setSelectedAgentId] = useState('')
+  const [assignOpen, setAssignOpen] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState('')
 
@@ -261,7 +309,7 @@ function TicketDetail() {
           setNotFound(true)
           return
         }
-        applyTicket(data)
+        setTicket(data)
       })
       .catch((err) => {
         if (cancelled) return
@@ -297,19 +345,11 @@ function TicketDetail() {
     }
   }, [isManager, navigate])
 
-  // Set the ticket and preselect its current assignee in the picker, so the
-  // dropdown reflects reality and "Reassign" starts from who's assigned now.
-  // Done where the data arrives (not in an effect) to avoid a cascading render.
-  function applyTicket(data) {
-    setTicket(data)
-    setSelectedAgentId(data.assignedToUser ? String(data.assignedToUser.id) : '')
-  }
-
   // Re-fetch the ticket so the page reflects new values, status and timestamps.
   async function refresh() {
     try {
       const data = await fetchTicketById(id)
-      if (data) applyTicket(data)
+      if (data) setTicket(data)
     } catch (err) {
       if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
     }
@@ -340,14 +380,14 @@ function TicketDetail() {
     }
   }
 
-  // Assign (or reassign) the ticket to the chosen agent, then re-fetch so the
-  // "Assigned to" panel and any unlocked status actions update.
-  async function handleAssign() {
-    if (!selectedAgentId) return
+  // Assign (or reassign) the ticket to the agent picked in the modal, then close
+  // it and re-fetch so the "Assigned to" panel and any unlocked actions update.
+  async function handleAssign(agentUserId) {
     setAssignError('')
     setAssigning(true)
     try {
-      await assignTicket(id, Number(selectedAgentId))
+      await assignTicket(id, agentUserId)
+      setAssignOpen(false)
       await refresh()
     } catch (err) {
       if (err instanceof SessionExpiredError) {
@@ -436,8 +476,9 @@ function TicketDetail() {
     isManager && t.statusName !== 'Resolved' && t.statusName !== 'Closed'
   const canStartWork =
     isManager && t.statusName === 'Open' && t.assignedToUser != null
-  const currentAssigneeId = t.assignedToUser?.id ?? null
-  const selectionChanged = selectedAgentId !== '' && Number(selectedAgentId) !== currentAssigneeId
+  // A manager closes out a resolved ticket (Resolved -> Closed), mirroring the
+  // backend state machine. This is the terminal step, so no assignment card shows.
+  const canClose = isManager && t.statusName === 'Resolved'
 
   return (
     <div className="td-page">
@@ -507,37 +548,19 @@ function TicketDetail() {
                 <div className="td-side-body">
                   <h2 className="td-side-title">Assignment</h2>
 
-                  <div className="td-field">
-                    <label className="td-flabel">
-                      {t.assignedToUser ? 'Reassign to' : 'Assign to'}
-                    </label>
-                    <select
-                      className="td-select"
-                      value={selectedAgentId}
-                      onChange={(e) => setSelectedAgentId(e.target.value)}
-                      disabled={assigning || agents.length === 0}
-                    >
-                      <option value="">
-                        {agents.length === 0 ? 'No agents available' : 'Select an agent'}
-                      </option>
-                      {agents.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.firstName} {a.lastName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
+                  <p className="td-workflow-hint">
+                    {t.assignedToUser
+                      ? `Currently handled by ${fullName(t.assignedToUser)}.`
+                      : 'No agent is handling this ticket yet.'}
+                  </p>
                   <button
-                    className="td-btn td-btn-primary td-btn-block"
-                    onClick={handleAssign}
-                    disabled={assigning || !selectionChanged}
+                    className="td-btn td-btn-block"
+                    onClick={() => {
+                      setAssignError('')
+                      setAssignOpen(true)
+                    }}
                   >
-                    {assigning
-                      ? 'Assigning…'
-                      : t.assignedToUser
-                        ? 'Reassign ticket'
-                        : 'Assign ticket'}
+                    🤝 {t.assignedToUser ? 'Reassign' : 'Assign'} ticket
                   </button>
 
                   {canStartWork && (
@@ -559,9 +582,26 @@ function TicketDetail() {
                       )}
                     </>
                   )}
+                </div>
+              </div>
+            )}
 
-                  {assignError && (
-                    <div className="td-banner td-banner-sm">⚠ {assignError}</div>
+            {canClose && (
+              <div className="td-card">
+                <div className="td-side-body">
+                  <h2 className="td-side-title">Workflow</h2>
+                  <p className="td-workflow-hint">
+                    The requester confirmed the fix. Close this ticket to complete it.
+                  </p>
+                  <button
+                    className="td-btn td-btn-primary td-btn-block"
+                    onClick={() => changeStatus('Closed')}
+                    disabled={working}
+                  >
+                    {working ? 'Working…' : '🔒 Close ticket'}
+                  </button>
+                  {actionError && (
+                    <div className="td-banner td-banner-sm">⚠ {actionError}</div>
                   )}
                 </div>
               </div>
@@ -618,6 +658,17 @@ function TicketDetail() {
             ticket={t}
             onClose={() => setEditing(false)}
             onSaved={handleSaved}
+          />
+        )}
+
+        {assignOpen && (
+          <AssignTicketModal
+            ticket={t}
+            agents={agents}
+            assigning={assigning}
+            error={assignError}
+            onAssign={handleAssign}
+            onClose={() => setAssignOpen(false)}
           />
         )}
       </div>
