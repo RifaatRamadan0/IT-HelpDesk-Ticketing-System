@@ -96,9 +96,12 @@ namespace HelpDesk.BLL.Services
                     from == TicketStatus.InProgress && to == TicketStatus.Pending
                     && ticket.AssignedToUserId == requestingUserId,
 
-                // The requester confirms the fix, moving Pending -> Resolved.
+                // The requester either confirms the fix (Pending -> Resolved)
+                // or sends unresolved work back to the assigned agent
+                // (Pending -> InProgress).
                 "Employee" =>
-                    from == TicketStatus.Pending && to == TicketStatus.Resolved
+                    from == TicketStatus.Pending
+                    && (to == TicketStatus.Resolved || to == TicketStatus.InProgress)
                     && ticket.CreatedByUserId == requestingUserId,
 
                 _ => false

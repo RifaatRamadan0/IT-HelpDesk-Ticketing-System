@@ -360,9 +360,8 @@ function TicketDetail() {
     await refresh()
   }
 
-  // Drive a role-specific status transition (Agent: In Progress -> Pending,
-  // Employee: Pending -> Resolved). The API is the source of truth on whether
-  // the move is legal; we just surface its rejection.
+  // Drive a role-specific status transition. The API is the source of truth on
+  // whether the move is legal; we just surface its rejection.
   async function changeStatus(targetName) {
     setActionError('')
     setWorking(true)
@@ -455,7 +454,7 @@ function TicketDetail() {
 
   // Workflow actions mirror the backend state machine so we never show an action
   // the API would reject. Agent hands finished work back for confirmation; the
-  // requester confirms the fix.
+  // requester confirms the fix or sends unresolved work back to the agent.
   const canAgentHandoff =
     role === 'Agent' &&
     t.statusName === 'In Progress' &&
@@ -640,6 +639,13 @@ function TicketDetail() {
                         disabled={working}
                       >
                         {working ? 'Working…' : '✅ Confirm the fix — mark resolved'}
+                      </button>
+                      <button
+                        className="td-btn td-btn-block"
+                        onClick={() => changeStatus('In Progress')}
+                        disabled={working}
+                      >
+                        {working ? 'Working...' : 'Still not resolved'}
                       </button>
                     </>
                   )}
