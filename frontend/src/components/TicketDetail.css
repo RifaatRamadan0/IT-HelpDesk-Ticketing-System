@@ -501,3 +501,78 @@
   font-weight: 600;
   font-size: 14px;
 }
+
+/* main column wrapper (ticket card + conversation) */
+.td-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* conversation / comments */
+.td-comments {
+  padding: 20px 24px;
+}
+
+.td-comment {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.td-comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.td-comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+
+.td-comment-author {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.td-comment-time {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  margin-left: auto;
+}
+
+.td-comment-bubble {
+  padding: 11px 15px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px 12px 12px 12px;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.td-comment-empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.td-comment-empty-title {
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.td-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

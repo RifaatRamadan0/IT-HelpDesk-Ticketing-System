@@ -26,6 +26,9 @@ namespace HelpDesk.BLL.Mapping
                 .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.CategoryName))
                 .ForMember(d => d.PriorityName, o => o.MapFrom(s => s.Priority.PriorityName))
                 .ForMember(d => d.StatusName, o => o.MapFrom(s => s.Status.StatusName));
+
+            // CreatedByUser maps by name via the User -> UserSummaryDto map above.
+            CreateMap<TicketComment, TicketCommentResponseDto>();
             // CreatedByUser / AssignedByUser / AssignedToUser map by name using
             // the User -> UserSummaryDto map above (nulls pass through as null).
         }

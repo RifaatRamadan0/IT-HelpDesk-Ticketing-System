@@ -43,6 +43,7 @@ namespace HelpDesk_API
             builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
             builder.Services.AddScoped<IPriorityRepository, PriorityRepository>();
             builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+            builder.Services.AddScoped<ITicketCommentRepository, TicketCommentRepository>();
 
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
@@ -51,6 +52,7 @@ namespace HelpDesk_API
             builder.Services.AddScoped<IPriorityService, PriorityService>();
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IRoleService, RoleService>();
+            builder.Services.AddScoped<ITicketCommentService, TicketCommentService>();
 
             builder.Services.AddAutoMapper(cfg =>
                 cfg.AddMaps(typeof(HelpDesk.BLL.Mapping.MappingProfile).Assembly));

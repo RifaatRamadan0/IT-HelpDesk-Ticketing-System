@@ -6,6 +6,8 @@ import {
   fetchPriorities,
   fetchAgents,
   assignTicket,
+  fetchComments,
+  postComment,
   updateTicket,
   updateTicketStatus,
   SessionExpiredError,
@@ -230,6 +232,24 @@ function EditTicketModal({ ticket, onClose, onSaved }) {
   )
 }
 
+// A single comment in the thread: avatar + author + time, then the message
+// bubble. Ported from the design's CommentBubble.
+function CommentBubble({ comment }) {
+  const name = fullName(comment.createdByUser)
+  return (
+    <div className="td-comment">
+      <span className="td-avatar td-avatar-lg">{initials(name)}</span>
+      <div className="td-comment-main">
+        <div className="td-comment-head">
+          <b className="td-comment-author">{name}</b>
+          <span className="td-comment-time">{formatDateTime(comment.createdDate)}</span>
+        </div>
+        <div className="td-comment-bubble">{comment.body}</div>
+      </div>
+    </div>
+  )
+}
+
 // Assignment modal: pick an agent from a list of avatar rows. Clicking a row
 // assigns immediately (matching the design), marking the current assignee with
 // a "✓ current" tag.
@@ -300,6 +320,13 @@ function TicketDetail() {
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState('')
 
+  // Comment thread.
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentBody, setCommentBody] = useState('')
+  const [posting, setPosting] = useState(false)
+  const [commentError, setCommentError] = useState('')
+
   useEffect(() => {
     let cancelled = false
     fetchTicketById(id)
@@ -345,6 +372,36 @@ function TicketDetail() {
     }
   }, [isManager, navigate])
 
+  // Can the signed-in user use the comment thread? Mirrors the backend access
+  // rule (Manager: any ticket; Agent: assigned; Employee: own; Admin: no).
+  const canComment =
+    ticket != null &&
+    (role === 'Manager' ||
+      (role === 'Agent' && ticket.assignedToUser?.id === userId) ||
+      (role === 'Employee' && ticket.createdByUser?.id === userId))
+
+  // Load the thread once we know the ticket and the user may see it. Keyed on the
+  // ticket so it also refreshes after actions that re-fetch the ticket.
+  useEffect(() => {
+    if (!canComment) return
+    let cancelled = false
+    fetchComments(id)
+      .then((data) => {
+        if (!cancelled) setComments(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+        else setCommentError(err.message)
+      })
+      .finally(() => {
+        if (!cancelled) setCommentsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canComment, id, navigate])
+
   // Re-fetch the ticket so the page reflects new values, status and timestamps.
   async function refresh() {
     try {
@@ -352,6 +409,28 @@ function TicketDetail() {
       if (data) setTicket(data)
     } catch (err) {
       if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+    }
+  }
+
+  // Post the composed comment, then refetch the thread so it appears.
+  async function handlePostComment() {
+    const body = commentBody.trim()
+    if (!body) return
+    setCommentError('')
+    setPosting(true)
+    try {
+      await postComment(id, body)
+      setCommentBody('')
+      const data = await fetchComments(id)
+      setComments(data)
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setCommentError(err.message)
+    } finally {
+      setPosting(false)
     }
   }
 
@@ -484,29 +563,73 @@ function TicketDetail() {
       <div className="td-shell">
         {back}
         <div className="td-grid">
-          {/* Main */}
-          <div className="td-card">
-            <div className="td-main-body">
-              <div className="td-badges">
-                <span className="td-ref">#{t.id}</span>
-                <Badge value={t.priorityName} cls={PRIORITY_META[t.priorityName]} />
-                <Badge value={t.statusName} cls={STATUS_META[t.statusName]} />
-                <Badge value={t.categoryName} cls="b-gray" />
+          {/* Main column */}
+          <div className="td-main-col">
+            <div className="td-card">
+              <div className="td-main-body">
+                <div className="td-badges">
+                  <span className="td-ref">#{t.id}</span>
+                  <Badge value={t.priorityName} cls={PRIORITY_META[t.priorityName]} />
+                  <Badge value={t.statusName} cls={STATUS_META[t.statusName]} />
+                  <Badge value={t.categoryName} cls="b-gray" />
+                </div>
+                <div className="td-title-row">
+                  <h1 className="td-title">{t.title}</h1>
+                  {canEdit && (
+                    <button
+                      className="td-edit-btn"
+                      onClick={() => setEditing(true)}
+                      title="Edit ticket details"
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
+                </div>
+                <p className="td-desc">{t.description}</p>
               </div>
-              <div className="td-title-row">
-                <h1 className="td-title">{t.title}</h1>
-                {canEdit && (
-                  <button
-                    className="td-edit-btn"
-                    onClick={() => setEditing(true)}
-                    title="Edit ticket details"
-                  >
-                    ✏️ Edit
-                  </button>
-                )}
-              </div>
-              <p className="td-desc">{t.description}</p>
             </div>
+
+            {/* Conversation */}
+            {canComment && (
+              <div className="td-card">
+                <div className="td-comments">
+                  <h2 className="td-side-title">Conversation</h2>
+
+                  {commentsLoading ? (
+                    <div className="td-comment-empty">Loading conversation…</div>
+                  ) : comments.length === 0 ? (
+                    <div className="td-comment-empty">
+                      <div className="td-comment-empty-title">No replies yet</div>
+                      <div>Start the conversation below.</div>
+                    </div>
+                  ) : (
+                    comments.map((c) => <CommentBubble key={c.id} comment={c} />)
+                  )}
+
+                  <div className="td-rule" />
+
+                  <textarea
+                    className="td-textarea"
+                    rows={3}
+                    value={commentBody}
+                    onChange={(e) => setCommentBody(e.target.value)}
+                    placeholder="Write a reply…"
+                  />
+                  {commentError && (
+                    <div className="td-banner td-banner-sm">⚠ {commentError}</div>
+                  )}
+                  <div className="td-comment-actions">
+                    <button
+                      className="td-btn td-btn-primary"
+                      onClick={handlePostComment}
+                      disabled={posting || !commentBody.trim()}
+                    >
+                      {posting ? 'Posting…' : 'Post reply →'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Side panel */}

@@ -20,6 +20,7 @@ namespace HelpDesk.DAL.Data
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Priority> Priorities => Set<Priority>();
         public DbSet<Status> Statuses => Set<Status>();
+        public DbSet<TicketComment> TicketComments => Set<TicketComment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,6 +53,22 @@ namespace HelpDesk.DAL.Data
             modelBuilder.Entity<Ticket>()
                 .Property(t => t.Title)
                 .HasMaxLength(200);
+
+            modelBuilder.Entity<TicketComment>()
+                .HasOne(c => c.Ticket)
+                .WithMany()
+                .HasForeignKey(c => c.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TicketComment>()
+                .HasOne(c => c.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TicketComment>()
+                .Property(c => c.Body)
+                .HasMaxLength(2000);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, CategoryName = "Hardware" },

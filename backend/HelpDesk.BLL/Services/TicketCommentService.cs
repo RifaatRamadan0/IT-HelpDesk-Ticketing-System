@@ -1,0 +1,66 @@
+using AutoMapper;
+using HelpDesk.BLL.DTOs;
+using HelpDesk.BLL.Interfaces;
+using HelpDesk.DAL.Interfaces;
+using HelpDesk.Domain.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace HelpDesk.BLL.Services
+{
+    public class TicketCommentService : ITicketCommentService
+    {
+        private readonly ITicketCommentRepository _commentRepository;
+        private readonly ITicketRepository _ticketRepository;
+        private readonly IMapper _mapper;
+
+        public TicketCommentService(
+            ITicketCommentRepository commentRepository,
+            ITicketRepository ticketRepository,
+            IMapper mapper)
+        {
+            _commentRepository = commentRepository;
+            _ticketRepository = ticketRepository;
+            _mapper = mapper;
+        }
+
+
+        private static bool CanAccess(Ticket ticket, int userId, string? role) => role switch
+        {
+            "Manager" => true,
+            "Agent" => ticket.AssignedToUserId == userId,
+            "Employee" => ticket.CreatedByUserId == userId,
+            _ => false
+        };
+
+        public async Task<ICollection<TicketCommentResponseDto>?> GetForTicketAsync(int ticketId, int requestingUserId, string? requestingUserRole)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null || !CanAccess(ticket, requestingUserId, requestingUserRole))
+                return null;
+
+            var comments = await _commentRepository.GetByTicketIdAsync(ticketId);
+            return _mapper.Map<List<TicketCommentResponseDto>>(comments);
+        }
+
+        public async Task<int?> AddAsync(int ticketId, CreateTicketCommentRequestDto request, int requestingUserId, string? requestingUserRole)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null || !CanAccess(ticket, requestingUserId, requestingUserRole))
+                return null;
+
+            var comment = new TicketComment
+            {
+                TicketId = ticketId,
+                CreatedByUserId = requestingUserId,
+                Body = request.Body,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            return await _commentRepository.CreateAsync(comment);
+        }
+    }
+}

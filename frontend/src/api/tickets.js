@@ -204,6 +204,46 @@ export async function assignTicket(id, agentUserId) {
   }
 }
 
+// Fetch a ticket's comment thread, oldest first. Access is role-based on the
+// server (Manager: any; Agent: assigned; Employee: own); a ticket the caller
+// can't see comes back as 404. Returns [{ id, body, createdDate, createdByUser }].
+export async function fetchComments(id) {
+  const response = await fetch(`${TICKET_URL}/${id}/comments`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load the conversation.')
+  }
+  return response.json()
+}
+
+// Post a comment on a ticket. Same role-based access as fetchComments; the API
+// returns 201 with no body, so callers refetch the thread.
+export async function postComment(id, body) {
+  const response = await fetch(`${TICKET_URL}/${id}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ body }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403 || response.status === 404) {
+    throw new Error('You can’t comment on this ticket.')
+  }
+  if (!response.ok) {
+    // 400: empty or over-long body.
+    throw new Error('Your comment couldn’t be posted. Please try again.')
+  }
+}
+
 // Edit an existing ticket. The API only allows the creating employee to update
 // it, and only while it's still Open (enforced in TicketService); a rejected
 // edit comes back as 400, surfaced here as a friendly message.

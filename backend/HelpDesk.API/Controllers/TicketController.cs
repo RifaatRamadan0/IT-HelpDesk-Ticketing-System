@@ -14,10 +14,12 @@ namespace HelpDesk_API.Controllers
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
+        private readonly ITicketCommentService _commentService;
 
-        public TicketController(ITicketService ticketService)
+        public TicketController(ITicketService ticketService, ITicketCommentService commentService)
         {
             _ticketService = ticketService;
+            _commentService = commentService;
         }
 
         [Authorize(Roles = "Employee")]
@@ -119,6 +121,36 @@ namespace HelpDesk_API.Controllers
                 AssignTicketResult.InvalidAgent => BadRequest("The selected user is not an active agent."),
                 _ => StatusCode(500)
             };
+        }
+
+        [HttpGet("{id}/comments")]
+        [Authorize(Roles = "Manager,Employee,Agent")]
+        public async Task<IActionResult> GetTicketComments(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            // null = the caller may not see this ticket's comments; map to 404 so the
+            // ticket's existence isn't disclosed (same convention as GetTicketById).
+            var comments = await _commentService.GetForTicketAsync(id, userId, role);
+            if (comments == null)
+                return NotFound();
+
+            return Ok(comments);
+        }
+
+        [HttpPost("{id}/comments")]
+        [Authorize(Roles = "Manager,Employee,Agent")]
+        public async Task<IActionResult> AddTicketComment(int id, [FromBody] CreateTicketCommentRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var newId = await _commentService.AddAsync(id, request, userId, role);
+            if (newId == null)
+                return NotFound();
+
+            return CreatedAtAction(nameof(GetTicketComments), new { id }, null);
         }
 
         [HttpDelete("{id}")]
