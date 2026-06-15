@@ -21,6 +21,7 @@ namespace HelpDesk.DAL.Data
         public DbSet<Priority> Priorities => Set<Priority>();
         public DbSet<Status> Statuses => Set<Status>();
         public DbSet<TicketComment> TicketComments => Set<TicketComment>();
+        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -69,6 +70,41 @@ namespace HelpDesk.DAL.Data
             modelBuilder.Entity<TicketComment>()
                 .Property(c => c.Body)
                 .HasMaxLength(2000);
+
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(a => a.Ticket)
+                .WithMany()
+                .HasForeignKey(a => a.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(a => a.OldStatus)
+                .WithMany()
+                .HasForeignKey(a => a.OldStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(a => a.NewStatus)
+                .WithMany()
+                .HasForeignKey(a => a.NewStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Persist the action kind as its string name (human-readable column).
+            modelBuilder.Entity<ActivityLog>()
+                .Property(a => a.ActionType)
+                .HasConversion<string>()
+                .HasMaxLength(40);
+
+            modelBuilder.Entity<ActivityLog>()
+                .Property(a => a.ActionText)
+                .HasMaxLength(256);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, CategoryName = "Hardware" },

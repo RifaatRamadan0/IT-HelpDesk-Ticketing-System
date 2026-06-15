@@ -15,11 +15,16 @@ namespace HelpDesk_API.Controllers
     {
         private readonly ITicketService _ticketService;
         private readonly ITicketCommentService _commentService;
+        private readonly IActivityLogService _activityService;
 
-        public TicketController(ITicketService ticketService, ITicketCommentService commentService)
+        public TicketController(
+            ITicketService ticketService,
+            ITicketCommentService commentService,
+            IActivityLogService activityService)
         {
             _ticketService = ticketService;
             _commentService = commentService;
+            _activityService = activityService;
         }
 
         [Authorize(Roles = "Employee")]
@@ -151,6 +156,20 @@ namespace HelpDesk_API.Controllers
                 return NotFound();
 
             return CreatedAtAction(nameof(GetTicketComments), new { id }, null);
+        }
+
+        [HttpGet("{id}/activity")]
+        [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        public async Task<IActionResult> GetTicketActivity(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var activity = await _activityService.GetForTicketAsync(id, userId, role);
+            if (activity == null)
+                return NotFound();
+
+            return Ok(activity);
         }
 
         [HttpDelete("{id}")]

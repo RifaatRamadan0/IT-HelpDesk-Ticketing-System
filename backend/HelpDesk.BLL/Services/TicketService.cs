@@ -17,12 +17,18 @@ namespace HelpDesk.BLL.Services
     {
         private readonly ITicketRepository _ticketRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IActivityLogRepository _activityRepository;
         private readonly IMapper _mapper;
 
-        public TicketService(ITicketRepository ticketRepository, IUserRepository userRepository, IMapper mapper)
+        public TicketService(
+            ITicketRepository ticketRepository,
+            IUserRepository userRepository,
+            IActivityLogRepository activityRepository,
+            IMapper mapper)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
+            _activityRepository = activityRepository;
             _mapper = mapper;
         }
 
@@ -38,7 +44,17 @@ namespace HelpDesk.BLL.Services
                 CreatedByUserId = createdByUserId
             };
 
-            return await _ticketRepository.CreateAsync(ticket);
+            var ticketId = await _ticketRepository.CreateAsync(ticket);
+
+            await _activityRepository.CreateAsync(new ActivityLog
+            {
+                TicketId = ticketId,
+                UserId = createdByUserId,
+                ActionType = ActivityAction.Created,
+                ActionText = "created the ticket"
+            });
+
+            return ticketId;
         }
 
         public async Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId)
@@ -118,7 +134,21 @@ namespace HelpDesk.BLL.Services
             if (to == TicketStatus.Resolved)
                 ticket.ResolvedDate ??= DateTime.UtcNow;
 
-            return await _ticketRepository.UpdateAsync(ticket);
+            var updated = await _ticketRepository.UpdateAsync(ticket);
+            if (updated)
+            {
+                await _activityRepository.CreateAsync(new ActivityLog
+                {
+                    TicketId = ticketId,
+                    UserId = requestingUserId,
+                    ActionType = ActivityAction.StatusChanged,
+                    ActionText = $"changed status from {from} to {to}",
+                    OldStatusId = (int)from,
+                    NewStatusId = (int)to
+                });
+            }
+
+            return updated;
         }
 
         public async Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId)
@@ -135,11 +165,24 @@ namespace HelpDesk.BLL.Services
             if (agent == null || !agent.IsActive || agent.Role?.RoleName != "Agent")
                 return AssignTicketResult.InvalidAgent;
 
+            // Capture whether this is a first assignment or a reassignment before
+            // overwriting, so the log records the right action.
+            bool wasAssigned = ticket.AssignedToUserId != null;
+
             ticket.AssignedToUserId = agentUserId;
             ticket.AssignedByUserId = assignedByUserId;
             ticket.UpdatedDate = DateTime.UtcNow;
 
             await _ticketRepository.UpdateAsync(ticket);
+
+            await _activityRepository.CreateAsync(new ActivityLog
+            {
+                TicketId = ticketId,
+                UserId = assignedByUserId,
+                ActionType = wasAssigned ? ActivityAction.Reassigned : ActivityAction.Assigned,
+                ActionText = $"{(wasAssigned ? "reassigned" : "assigned")} to {agent.FirstName} {agent.LastName}"
+            });
+
             return AssignTicketResult.Assigned;
         }
 

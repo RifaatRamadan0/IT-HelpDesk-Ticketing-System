@@ -29,6 +29,12 @@ namespace HelpDesk.BLL.Mapping
 
             // CreatedByUser maps by name via the User -> UserSummaryDto map above.
             CreateMap<TicketComment, TicketCommentResponseDto>();
+
+            // ActionType (enum) maps to its string name automatically; status names
+            // come from the nullable Old/New navs; User via User -> UserSummaryDto.
+            CreateMap<ActivityLog, ActivityLogResponseDto>()
+                .ForMember(d => d.OldStatusName, o => o.MapFrom(s => s.OldStatus != null ? s.OldStatus.StatusName : null))
+                .ForMember(d => d.NewStatusName, o => o.MapFrom(s => s.NewStatus != null ? s.NewStatus.StatusName : null));
             // CreatedByUser / AssignedByUser / AssignedToUser map by name using
             // the User -> UserSummaryDto map above (nulls pass through as null).
         }

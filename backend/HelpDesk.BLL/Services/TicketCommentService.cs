@@ -15,15 +15,18 @@ namespace HelpDesk.BLL.Services
     {
         private readonly ITicketCommentRepository _commentRepository;
         private readonly ITicketRepository _ticketRepository;
+        private readonly IActivityLogRepository _activityRepository;
         private readonly IMapper _mapper;
 
         public TicketCommentService(
             ITicketCommentRepository commentRepository,
             ITicketRepository ticketRepository,
+            IActivityLogRepository activityRepository,
             IMapper mapper)
         {
             _commentRepository = commentRepository;
             _ticketRepository = ticketRepository;
+            _activityRepository = activityRepository;
             _mapper = mapper;
         }
 
@@ -60,7 +63,17 @@ namespace HelpDesk.BLL.Services
                 CreatedDate = DateTime.UtcNow
             };
 
-            return await _commentRepository.CreateAsync(comment);
+            var commentId = await _commentRepository.CreateAsync(comment);
+
+            await _activityRepository.CreateAsync(new ActivityLog
+            {
+                TicketId = ticketId,
+                UserId = requestingUserId,
+                ActionType = ActivityAction.CommentAdded,
+                ActionText = "added a comment"
+            });
+
+            return commentId;
         }
     }
 }
