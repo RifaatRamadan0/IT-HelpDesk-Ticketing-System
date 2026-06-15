@@ -8,6 +8,7 @@ import {
   assignTicket,
   fetchComments,
   postComment,
+  fetchActivity,
   updateTicket,
   updateTicketStatus,
   SessionExpiredError,
@@ -250,6 +251,32 @@ function CommentBubble({ comment }) {
   )
 }
 
+// Vertical activity timeline: a dot + connector per event, with the most recent
+// (last, since oldest-first) highlighted. Ported from the design's Timeline.
+function ActivityTimeline({ items }) {
+  return (
+    <div className="td-timeline">
+      {items.map((it, i) => {
+        const isLast = i === items.length - 1
+        return (
+          <div className="td-tl-item" key={it.id}>
+            <div className="td-tl-marker">
+              <span className={'td-tl-dot' + (isLast ? ' is-last' : '')} />
+              {!isLast && <span className="td-tl-line" />}
+            </div>
+            <div className="td-tl-body">
+              <div className="td-tl-text">
+                <b>{fullName(it.user)}</b> {it.actionText}
+              </div>
+              <div className="td-tl-time">{formatDateTime(it.createdDate)}</div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // Assignment modal: pick an agent from a list of avatar rows. Clicking a row
 // assigns immediately (matching the design), marking the current assignee with
 // a "✓ current" tag.
@@ -327,6 +354,11 @@ function TicketDetail() {
   const [posting, setPosting] = useState(false)
   const [commentError, setCommentError] = useState('')
 
+  // Activity log (visible to anyone who can view the ticket).
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState('')
+
   useEffect(() => {
     let cancelled = false
     fetchTicketById(id)
@@ -402,6 +434,29 @@ function TicketDetail() {
     }
   }, [canComment, id, navigate])
 
+  // Load the activity log once the ticket is known. Any user who can open the
+  // ticket can read it, so no extra access gate. Keyed on the ticket so it also
+  // refreshes after status/assignment actions that re-fetch the ticket.
+  useEffect(() => {
+    if (!ticket) return
+    let cancelled = false
+    fetchActivity(id)
+      .then((data) => {
+        if (!cancelled) setActivity(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+        else setActivityError(err.message)
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [ticket, id, navigate])
+
   // Re-fetch the ticket so the page reflects new values, status and timestamps.
   async function refresh() {
     try {
@@ -423,6 +478,8 @@ function TicketDetail() {
       setCommentBody('')
       const data = await fetchComments(id)
       setComments(data)
+      // A comment also produces a CommentAdded activity entry; keep it in sync.
+      setActivity(await fetchActivity(id))
     } catch (err) {
       if (err instanceof SessionExpiredError) {
         navigate('/login', { replace: true })
@@ -630,6 +687,24 @@ function TicketDetail() {
                 </div>
               </div>
             )}
+
+            {/* Activity / history (visible to anyone who can view the ticket) */}
+            <div className="td-card">
+              <div className="td-comments">
+                <h2 className="td-side-title">Activity</h2>
+                {activityLoading ? (
+                  <div className="td-comment-empty">Loading activity…</div>
+                ) : activityError ? (
+                  <div className="td-banner td-banner-sm">⚠ {activityError}</div>
+                ) : activity.length === 0 ? (
+                  <div className="td-comment-empty">
+                    <div className="td-comment-empty-title">No activity yet</div>
+                  </div>
+                ) : (
+                  <ActivityTimeline items={activity} />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Side panel */}

@@ -244,6 +244,22 @@ export async function postComment(id, body) {
   }
 }
 
+// Fetch a ticket's activity log (history/audit), oldest first. Access matches
+// ticket-view access on the server, so any user who can open the ticket can read
+// it. Returns [{ id, actionType, actionText, oldStatusName, newStatusName,
+// createdDate, user }].
+export async function fetchActivity(id) {
+  const response = await fetch(`${TICKET_URL}/${id}/activity`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load the activity history.')
+  }
+  return response.json()
+}
+
 // Edit an existing ticket. The API only allows the creating employee to update
 // it, and only while it's still Open (enforced in TicketService); a rejected
 // edit comes back as 400, surfaced here as a friendly message.

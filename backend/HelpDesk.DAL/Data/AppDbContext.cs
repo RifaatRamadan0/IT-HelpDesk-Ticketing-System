@@ -13,6 +13,16 @@ namespace HelpDesk.DAL.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+        // Read every DateTime back as UTC so it serializes with a 'Z' marker and
+        // clients don't mistake the stored UTC instant for local time.
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            configurationBuilder.Properties<DateTime>()
+                .HaveConversion<UtcDateTimeConverter>();
+            configurationBuilder.Properties<DateTime?>()
+                .HaveConversion<UtcNullableDateTimeConverter>();
+        }
+
         public DbSet<User> Users => Set<User>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

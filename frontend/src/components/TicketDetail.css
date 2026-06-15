@@ -576,3 +576,62 @@
   justify-content: flex-end;
   margin-top: 12px;
 }
+
+/* activity timeline */
+.td-timeline {
+  position: relative;
+  padding-left: 2px;
+}
+
+.td-tl-item {
+  display: flex;
+  gap: 14px;
+}
+
+.td-tl-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.td-tl-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2.5px solid var(--line);
+  flex: none;
+  margin-top: 3px;
+}
+
+.td-tl-dot.is-last {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.td-tl-line {
+  width: 2.5px;
+  flex: 1;
+  background: var(--line-soft);
+  margin-top: 2px;
+}
+
+.td-tl-body {
+  padding-bottom: 20px;
+}
+
+.td-tl-item:last-child .td-tl-body {
+  padding-bottom: 0;
+}
+
+.td-tl-text {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.td-tl-time {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 2px;
+}
