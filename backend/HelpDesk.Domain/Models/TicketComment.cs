@@ -17,6 +17,9 @@ namespace HelpDesk.Domain.Models
         public User CreatedByUser { get; set; } = null!;
 
         public string Body { get; set; } = string.Empty;
+
+        public bool IsInternal { get; set; }
+
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

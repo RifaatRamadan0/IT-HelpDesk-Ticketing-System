@@ -26,11 +26,12 @@ namespace HelpDesk.DAL.Repositories
             return comment.Id;
         }
 
-        public async Task<ICollection<TicketComment>> GetByTicketIdAsync(int ticketId)
+        public async Task<ICollection<TicketComment>> GetByTicketIdAsync(int ticketId, bool includeInternal)
         {
             return await _context.TicketComments
                 .Include(c => c.CreatedByUser).ThenInclude(u => u.Role)
                 .Where(c => c.TicketId == ticketId)
+                .Where(c => includeInternal || !c.IsInternal)
                 .OrderBy(c => c.CreatedDate)
                 .ToListAsync();
         }

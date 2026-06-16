@@ -10,6 +10,7 @@ namespace HelpDesk.DAL.Interfaces
     public interface ITicketCommentRepository
     {
         Task<int> CreateAsync(TicketComment comment);
-        Task<ICollection<TicketComment>> GetByTicketIdAsync(int ticketId);
+
+        Task<ICollection<TicketComment>> GetByTicketIdAsync(int ticketId, bool includeInternal);
     }
 }

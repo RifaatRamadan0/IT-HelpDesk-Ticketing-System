@@ -31,7 +31,13 @@ namespace HelpDesk.BLL.Services
         }
 
 
-        private static bool CanAccess(Ticket ticket, int userId, string? role) => role switch
+        private static bool CanRead(Ticket ticket, int userId, string? role) => role switch
+        {
+            "Admin" => true,
+            _ => CanComment(ticket, userId, role)
+        };
+
+        private static bool CanComment(Ticket ticket, int userId, string? role) => role switch
         {
             "Manager" => true,
             "Agent" => ticket.AssignedToUserId == userId,
@@ -39,39 +45,49 @@ namespace HelpDesk.BLL.Services
             _ => false
         };
 
+        private static bool CanSeeInternal(string? role) =>
+            role is "Manager" or "Agent" or "Admin";
+
         public async Task<ICollection<TicketCommentResponseDto>?> GetForTicketAsync(int ticketId, int requestingUserId, string? requestingUserRole)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
-            if (ticket == null || !CanAccess(ticket, requestingUserId, requestingUserRole))
+            if (ticket == null || !CanRead(ticket, requestingUserId, requestingUserRole))
                 return null;
 
-            var comments = await _commentRepository.GetByTicketIdAsync(ticketId);
+            var comments = await _commentRepository.GetByTicketIdAsync(
+                ticketId, includeInternal: CanSeeInternal(requestingUserRole));
             return _mapper.Map<List<TicketCommentResponseDto>>(comments);
         }
 
         public async Task<int?> AddAsync(int ticketId, CreateTicketCommentRequestDto request, int requestingUserId, string? requestingUserRole)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
-            if (ticket == null || !CanAccess(ticket, requestingUserId, requestingUserRole))
+            if (ticket == null || !CanComment(ticket, requestingUserId, requestingUserRole))
                 return null;
+
+            var isInternal = request.IsInternal && requestingUserRole is "Manager" or "Agent";
 
             var comment = new TicketComment
             {
                 TicketId = ticketId,
                 CreatedByUserId = requestingUserId,
                 Body = request.Body,
+                IsInternal = isInternal,
                 CreatedDate = DateTime.UtcNow
             };
 
             var commentId = await _commentRepository.CreateAsync(comment);
 
-            await _activityRepository.CreateAsync(new ActivityLog
+            if (!isInternal)
             {
-                TicketId = ticketId,
-                UserId = requestingUserId,
-                ActionType = ActivityAction.CommentAdded,
-                ActionText = "added a comment"
-            });
+                await _activityRepository.CreateAsync(new ActivityLog
+                {
+                    TicketId = ticketId,
+                    UserId = requestingUserId,
+                    ActionType = ActivityAction.CommentAdded,
+                    ActionText = "added a comment"
+                });
+            }
 
             return commentId;
         }

@@ -220,15 +220,17 @@ export async function fetchComments(id) {
 }
 
 // Post a comment on a ticket. Same role-based access as fetchComments; the API
-// returns 201 with no body, so callers refetch the thread.
-export async function postComment(id, body) {
+// returns 201 with no body, so callers refetch the thread. isInternal marks a
+// staff-only note hidden from the employee — the server is the source of truth
+// and will ignore/clear the flag for roles that aren't allowed to set it.
+export async function postComment(id, body, isInternal = false) {
   const response = await fetch(`${TICKET_URL}/${id}/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...authHeader(),
     },
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, isInternal }),
   })
 
   if (response.status === 401) {

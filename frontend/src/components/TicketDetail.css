@@ -573,8 +573,56 @@
 
 .td-comment-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+/* internal notes — staff-only, amber-tinted to read clearly apart from replies */
+.td-internal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto; /* push the toggle left, keep the post button at the right */
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--amber);
+  cursor: pointer;
+  user-select: none;
+}
+
+.td-internal-toggle input {
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+
+.td-textarea--internal {
+  background: var(--amber-bg);
+  border-color: var(--amber);
+}
+
+.td-textarea--internal:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-bg);
+}
+
+.td-btn-internal {
+  background: var(--amber);
+  color: #fff;
+}
+
+.td-internal-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber);
+  background: var(--amber-bg);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+
+.td-comment-bubble--internal {
+  background: var(--amber-bg);
+  border-color: var(--amber);
 }
 
 /* activity timeline */

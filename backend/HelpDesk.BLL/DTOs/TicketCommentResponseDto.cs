@@ -10,6 +10,7 @@ namespace HelpDesk.BLL.DTOs
     {
         public int Id { get; set; }
         public string Body { get; set; } = string.Empty;
+        public bool IsInternal { get; set; }
         public DateTime CreatedDate { get; set; }
         public UserSummaryDto CreatedByUser { get; set; } = null!;
     }

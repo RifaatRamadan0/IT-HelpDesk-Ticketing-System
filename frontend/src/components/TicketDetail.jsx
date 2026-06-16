@@ -237,15 +237,25 @@ function EditTicketModal({ ticket, onClose, onSaved }) {
 // bubble. Ported from the design's CommentBubble.
 function CommentBubble({ comment }) {
   const name = fullName(comment.createdByUser)
+  const internal = comment.isInternal
   return (
     <div className="td-comment">
       <span className="td-avatar td-avatar-lg">{initials(name)}</span>
       <div className="td-comment-main">
         <div className="td-comment-head">
           <b className="td-comment-author">{name}</b>
+          {internal && <span className="td-internal-badge">🔒 Internal</span>}
           <span className="td-comment-time">{formatDateTime(comment.createdDate)}</span>
         </div>
-        <div className="td-comment-bubble">{comment.body}</div>
+        <div
+          className={
+            internal
+              ? 'td-comment-bubble td-comment-bubble--internal'
+              : 'td-comment-bubble'
+          }
+        >
+          {comment.body}
+        </div>
       </div>
     </div>
   )
@@ -351,6 +361,7 @@ function TicketDetail() {
   const [comments, setComments] = useState([])
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [commentBody, setCommentBody] = useState('')
+  const [isInternal, setIsInternal] = useState(false)
   const [posting, setPosting] = useState(false)
   const [commentError, setCommentError] = useState('')
 
@@ -404,18 +415,28 @@ function TicketDetail() {
     }
   }, [isManager, navigate])
 
-  // Can the signed-in user use the comment thread? Mirrors the backend access
-  // rule (Manager: any ticket; Agent: assigned; Employee: own; Admin: no).
+  // Who may POST a comment. Mirrors the backend CanComment rule (Manager: any
+  // ticket; Agent: assigned; Employee: own). Admin is excluded — it can read the
+  // thread but is not part of the support conversation.
   const canComment =
     ticket != null &&
     (role === 'Manager' ||
       (role === 'Agent' && ticket.assignedToUser?.id === userId) ||
       (role === 'Employee' && ticket.createdByUser?.id === userId))
 
+  // Who may READ the thread. Mirrors the backend CanRead rule: anyone who can
+  // comment, plus Admin as a read-only oversight role.
+  const canReadComments = ticket != null && (role === 'Admin' || canComment)
+
+  // Who may post an INTERNAL note (staff-only, hidden from the employee). The
+  // ticket creator must never see this toggle, so it's gated to staff roles that
+  // can already comment. Admin is read-only, so it's excluded here too.
+  const canWriteInternal = canComment && (role === 'Manager' || role === 'Agent')
+
   // Load the thread once we know the ticket and the user may see it. Keyed on the
   // ticket so it also refreshes after actions that re-fetch the ticket.
   useEffect(() => {
-    if (!canComment) return
+    if (!canReadComments) return
     let cancelled = false
     fetchComments(id)
       .then((data) => {
@@ -432,7 +453,7 @@ function TicketDetail() {
     return () => {
       cancelled = true
     }
-  }, [canComment, id, navigate])
+  }, [canReadComments, id, navigate])
 
   // Load the activity log once the ticket is known. Any user who can open the
   // ticket can read it, so no extra access gate. Keyed on the ticket so it also
@@ -474,8 +495,9 @@ function TicketDetail() {
     setCommentError('')
     setPosting(true)
     try {
-      await postComment(id, body)
+      await postComment(id, body, isInternal)
       setCommentBody('')
+      setIsInternal(false)
       const data = await fetchComments(id)
       setComments(data)
       // A comment also produces a CommentAdded activity entry; keep it in sync.
@@ -647,7 +669,7 @@ function TicketDetail() {
             </div>
 
             {/* Conversation */}
-            {canComment && (
+            {canReadComments && (
               <div className="td-card">
                 <div className="td-comments">
                   <h2 className="td-side-title">Conversation</h2>
@@ -657,33 +679,66 @@ function TicketDetail() {
                   ) : comments.length === 0 ? (
                     <div className="td-comment-empty">
                       <div className="td-comment-empty-title">No replies yet</div>
-                      <div>Start the conversation below.</div>
+                      {canComment && <div>Start the conversation below.</div>}
                     </div>
                   ) : (
                     comments.map((c) => <CommentBubble key={c.id} comment={c} />)
                   )}
 
-                  <div className="td-rule" />
+                  {/* Composer — only for participants, not read-only Admin. */}
+                  {canComment && (
+                    <>
+                      <div className="td-rule" />
 
-                  <textarea
-                    className="td-textarea"
-                    rows={3}
-                    value={commentBody}
-                    onChange={(e) => setCommentBody(e.target.value)}
-                    placeholder="Write a reply…"
-                  />
-                  {commentError && (
-                    <div className="td-banner td-banner-sm">⚠ {commentError}</div>
+                      <textarea
+                        className={
+                          isInternal
+                            ? 'td-textarea td-textarea--internal'
+                            : 'td-textarea'
+                        }
+                        rows={3}
+                        value={commentBody}
+                        onChange={(e) => setCommentBody(e.target.value)}
+                        placeholder={
+                          isInternal
+                            ? 'Write an internal note (staff only)…'
+                            : 'Write a reply…'
+                        }
+                      />
+                      {commentError && (
+                        <div className="td-banner td-banner-sm">⚠ {commentError}</div>
+                      )}
+                      <div className="td-comment-actions">
+                        {/* Internal-note toggle: staff only. The employee never
+                            sees this control or the notes it produces. */}
+                        {canWriteInternal && (
+                          <label className="td-internal-toggle">
+                            <input
+                              type="checkbox"
+                              checked={isInternal}
+                              onChange={(e) => setIsInternal(e.target.checked)}
+                            />
+                            <span>🔒 Internal note</span>
+                          </label>
+                        )}
+                        <button
+                          className={
+                            isInternal
+                              ? 'td-btn td-btn-internal'
+                              : 'td-btn td-btn-primary'
+                          }
+                          onClick={handlePostComment}
+                          disabled={posting || !commentBody.trim()}
+                        >
+                          {posting
+                            ? 'Posting…'
+                            : isInternal
+                              ? 'Post internal note →'
+                              : 'Post reply →'}
+                        </button>
+                      </div>
+                    </>
                   )}
-                  <div className="td-comment-actions">
-                    <button
-                      className="td-btn td-btn-primary"
-                      onClick={handlePostComment}
-                      disabled={posting || !commentBody.trim()}
-                    >
-                      {posting ? 'Posting…' : 'Post reply →'}
-                    </button>
-                  </div>
                 </div>
               </div>
             )}

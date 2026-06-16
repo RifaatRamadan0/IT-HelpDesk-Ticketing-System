@@ -12,5 +12,7 @@ namespace HelpDesk.BLL.DTOs
         [Required]
         [MaxLength(2000)]
         public string Body { get; set; } = string.Empty;
+
+        public bool IsInternal { get; set; }
     }
 }

@@ -129,7 +129,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpGet("{id}/comments")]
-        [Authorize(Roles = "Manager,Employee,Agent")]
+        [Authorize(Roles = "Admin,Manager,Employee,Agent")]
         public async Task<IActionResult> GetTicketComments(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
