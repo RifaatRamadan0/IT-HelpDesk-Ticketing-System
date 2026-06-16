@@ -161,6 +161,9 @@ namespace HelpDesk.BLL.Services
             if (status == TicketStatus.Resolved || status == TicketStatus.Closed)
                 return AssignTicketResult.TicketClosed;
 
+            if (ticket.AssignedToUserId == agentUserId)
+                return AssignTicketResult.AlreadyAssigned;
+
             var agent = await _userRepository.GetByIdAsync(agentUserId);
             if (agent == null || !agent.IsActive || agent.Role?.RoleName != "Agent")
                 return AssignTicketResult.InvalidAgent;

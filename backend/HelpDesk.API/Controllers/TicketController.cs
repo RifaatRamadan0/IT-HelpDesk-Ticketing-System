@@ -121,6 +121,7 @@ namespace HelpDesk_API.Controllers
             return result switch
             {
                 AssignTicketResult.Assigned => NoContent(),
+                AssignTicketResult.AlreadyAssigned => NoContent(),
                 AssignTicketResult.TicketNotFound => NotFound(),
                 AssignTicketResult.TicketClosed => Conflict("This ticket is resolved or closed and can't be assigned."),
                 AssignTicketResult.InvalidAgent => BadRequest("The selected user is not an active agent."),

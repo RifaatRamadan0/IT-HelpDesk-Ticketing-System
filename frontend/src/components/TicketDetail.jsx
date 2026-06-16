@@ -316,7 +316,8 @@ function AssignTicketModal({ ticket, agents, assigning, error, onAssign, onClose
                   key={a.id}
                   className="td-agent-row"
                   onClick={() => onAssign(a.id)}
-                  disabled={assigning}
+                  // The current assignee is a no-op reassignment — don't offer it.
+                  disabled={assigning || isCurrent}
                 >
                   <span className="td-avatar td-avatar-lg">{initials(name)}</span>
                   <span className="td-agent-info">
