@@ -1,4 +1,5 @@
 using AutoMapper;
+using HelpDesk.BLL.Authorization;
 using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using HelpDesk.DAL.Interfaces;
@@ -31,11 +32,8 @@ namespace HelpDesk.BLL.Services
         }
 
 
-        private static bool CanRead(Ticket ticket, int userId, string? role) => role switch
-        {
-            "Admin" => true,
-            _ => CanComment(ticket, userId, role)
-        };
+        private static bool CanRead(Ticket ticket, int userId, string? role) =>
+            TicketAccessPolicy.CanView(ticket, userId, role);
 
         private static bool CanComment(Ticket ticket, int userId, string? role) => role switch
         {
