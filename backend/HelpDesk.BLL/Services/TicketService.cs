@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using HelpDesk.BLL.Authorization;
 using HelpDesk.BLL.Common;
 using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
@@ -83,45 +84,47 @@ namespace HelpDesk.BLL.Services
 
         }
 
-        public async Task<bool> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole)
+        public async Task<UpdateStatusResult> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole)
         {
             if (!Enum.IsDefined(typeof(TicketStatus), statusId))
-                return false;
+                return UpdateStatusResult.InvalidStatus;
 
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
-                return false;
+                return UpdateStatusResult.TicketNotFound;
 
             var from = (TicketStatus)ticket.StatusId;
             var to = (TicketStatus)statusId;
 
-            bool allowed = requestingUserRole switch
+            bool authorized = requestingUserRole switch
             {
-                // Manager/Admin start the work (only once an agent is assigned)
-                // and close out a resolved ticket.
+                "Admin" or "Manager" => true,
+                "Agent" => ticket.AssignedToUserId == requestingUserId,
+                "Employee" => ticket.CreatedByUserId == requestingUserId,
+                _ => false
+            };
+
+            if (!authorized)
+                return UpdateStatusResult.NotAuthorized;
+
+            bool legalTransition = requestingUserRole switch
+            {
                 "Admin" or "Manager" =>
                     (from == TicketStatus.Open && to == TicketStatus.InProgress && ticket.AssignedToUserId != null)
                     || (from == TicketStatus.Resolved && to == TicketStatus.Closed),
 
-                // The assigned agent hands finished work back for confirmation —
-                // they cannot resolve directly; it parks in Pending.
                 "Agent" =>
-                    from == TicketStatus.InProgress && to == TicketStatus.Pending
-                    && ticket.AssignedToUserId == requestingUserId,
+                    from == TicketStatus.InProgress && to == TicketStatus.Pending,
 
-                // The requester either confirms the fix (Pending -> Resolved)
-                // or sends unresolved work back to the assigned agent
-                // (Pending -> InProgress).
                 "Employee" =>
                     from == TicketStatus.Pending
-                    && (to == TicketStatus.Resolved || to == TicketStatus.InProgress)
-                    && ticket.CreatedByUserId == requestingUserId,
+                    && (to == TicketStatus.Resolved || to == TicketStatus.InProgress),
 
                 _ => false
             };
 
-            if (!allowed)
-                return false;
+            if (!legalTransition)
+                return UpdateStatusResult.IllegalTransition;
 
             ticket.StatusId = statusId;
             ticket.UpdatedDate = DateTime.UtcNow;
@@ -129,26 +132,24 @@ namespace HelpDesk.BLL.Services
             if (from == TicketStatus.InProgress && to != TicketStatus.InProgress)
                 ticket.IsEscalated = false;
 
-            // The only way into Resolved is the employee's confirmation above;
-            // stamp the resolution time. Resolved -> Closed keeps that timestamp.
             if (to == TicketStatus.Resolved)
                 ticket.ResolvedDate ??= DateTime.UtcNow;
 
             var updated = await _ticketRepository.UpdateAsync(ticket);
-            if (updated)
-            {
-                await _activityRepository.CreateAsync(new ActivityLog
-                {
-                    TicketId = ticketId,
-                    UserId = requestingUserId,
-                    ActionType = ActivityAction.StatusChanged,
-                    ActionText = $"changed status from {from} to {to}",
-                    OldStatusId = (int)from,
-                    NewStatusId = (int)to
-                });
-            }
+            if (!updated)
+                return UpdateStatusResult.TicketNotFound;
 
-            return updated;
+            await _activityRepository.CreateAsync(new ActivityLog
+            {
+                TicketId = ticketId,
+                UserId = requestingUserId,
+                ActionType = ActivityAction.StatusChanged,
+                ActionText = $"changed status from {from} to {to}",
+                OldStatusId = (int)from,
+                NewStatusId = (int)to
+            });
+
+            return UpdateStatusResult.Success;
         }
 
         public async Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId)
@@ -273,15 +274,7 @@ namespace HelpDesk.BLL.Services
             if (ticket == null)
                 return null;
 
-            bool canView = requestingUserRole switch
-            {
-                "Admin" or "Manager" => true,
-                "Employee" => ticket.CreatedByUserId == requestingUserId,
-                "Agent" => ticket.AssignedToUserId == requestingUserId,
-                _ => false
-            };
-
-            if (!canView)
+            if (!TicketAccessPolicy.CanView(ticket, requestingUserId, requestingUserRole))
                 return null;
 
             return _mapper.Map<TicketResponseDto>(ticket);

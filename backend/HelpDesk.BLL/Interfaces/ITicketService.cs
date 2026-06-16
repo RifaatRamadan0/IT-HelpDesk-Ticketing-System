@@ -12,7 +12,7 @@ namespace HelpDesk.BLL.Interfaces
     {
         Task<int> CreateAsync(CreateTicketRequestDto request, int createdByUserId);
         Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId);
-        Task<bool> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole);
+        Task<UpdateStatusResult> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole);
         Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId);
         Task<EscalateTicketResult> EscalateTicketAsync(int ticketId, string reason, int requestingUserId);
         Task<bool> DeleteAsync(int ticketId, int requestingUserId);

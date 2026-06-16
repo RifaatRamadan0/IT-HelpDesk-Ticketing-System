@@ -105,10 +105,16 @@ namespace HelpDesk_API.Controllers
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var role = User.FindFirstValue(ClaimTypes.Role);
 
-            var isUpdated = await _ticketService.UpdateStatusAsync(id, request.StatusId, userId, role);
-            if (!isUpdated)
-                return BadRequest("Failed to update ticket status.");
-            return NoContent();
+            var result = await _ticketService.UpdateStatusAsync(id, request.StatusId, userId, role);
+            return result switch
+            {
+                UpdateStatusResult.Success => NoContent(),
+                UpdateStatusResult.TicketNotFound => NotFound(),
+                UpdateStatusResult.NotAuthorized => NotFound(),
+                UpdateStatusResult.IllegalTransition => BadRequest("This status change isn't allowed from the ticket's current state."),
+                UpdateStatusResult.InvalidStatus => BadRequest("Unknown ticket status."),
+                _ => StatusCode(500)
+            };
         }
 
         [HttpPut("{id}/assign")]
