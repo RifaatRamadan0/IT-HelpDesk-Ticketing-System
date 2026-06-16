@@ -4,5 +4,6 @@ public enum ActivityAction
     StatusChanged,
     Assigned,
     Reassigned,
-    CommentAdded
+    CommentAdded,
+    Escalated
 }

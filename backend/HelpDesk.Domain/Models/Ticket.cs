@@ -30,6 +30,8 @@ namespace HelpDesk.Domain.Models
         public int StatusId { get; set; }
         public Status Status { get; set; } = null!;
 
+        public bool IsEscalated { get; set; }
+
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedDate { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedDate { get; set; }

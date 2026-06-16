@@ -128,6 +128,24 @@ namespace HelpDesk_API.Controllers
             };
         }
 
+        [HttpPut("{id}/escalate")]
+        [Authorize(Roles = "Agent")]
+        public async Task<IActionResult> EscalateTicket(int id, [FromBody] EscalateTicketRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var result = await _ticketService.EscalateTicketAsync(id, request.Reason, userId);
+            return result switch
+            {
+                EscalateTicketResult.Escalated => NoContent(),
+                EscalateTicketResult.TicketNotFound => NotFound(),
+                EscalateTicketResult.NotAssignedAgent => NotFound(),
+                EscalateTicketResult.NotInProgress => Conflict("Only an in-progress ticket can be escalated."),
+                EscalateTicketResult.AlreadyEscalated => Conflict("This ticket has already been escalated."),
+                _ => StatusCode(500)
+            };
+        }
+
         [HttpGet("{id}/comments")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
         public async Task<IActionResult> GetTicketComments(int id)

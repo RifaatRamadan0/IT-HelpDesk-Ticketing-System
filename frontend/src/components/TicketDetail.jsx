@@ -6,6 +6,7 @@ import {
   fetchPriorities,
   fetchAgents,
   assignTicket,
+  escalateTicket,
   fetchComments,
   postComment,
   fetchActivity,
@@ -335,6 +336,50 @@ function AssignTicketModal({ ticket, agents, assigning, error, onAssign, onClose
   )
 }
 
+// Escalation modal: the agent must explain why they're stuck before escalating.
+// The reason becomes a staff-only internal note, so the requester never sees it.
+function EscalateTicketModal({ ticket, escalating, error, onEscalate, onClose }) {
+  const [reason, setReason] = useState('')
+  return (
+    <div className="td-modal-overlay" onClick={onClose}>
+      <div className="td-modal td-modal-narrow" onClick={(e) => e.stopPropagation()}>
+        <div className="td-modal-head">
+          <h2 className="td-modal-title">Escalate ticket #{ticket.id}</h2>
+          <button className="td-modal-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="td-modal-body">
+          <p className="td-workflow-hint">
+            Tell the manager why you couldn’t resolve this. Only staff see this
+            note — the requester won’t.
+          </p>
+          <textarea
+            className="td-textarea"
+            rows={4}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why does this need a manager?"
+          />
+          {error && <div className="td-banner td-banner-sm">⚠ {error}</div>}
+          <div className="td-modal-actions">
+            <button className="td-btn" onClick={onClose} disabled={escalating}>
+              Cancel
+            </button>
+            <button
+              className="td-btn td-btn-primary"
+              onClick={() => onEscalate(reason.trim())}
+              disabled={escalating || !reason.trim()}
+            >
+              {escalating ? 'Escalating…' : '⬆ Escalate to manager'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TicketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -356,6 +401,11 @@ function TicketDetail() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState('')
+
+  // Escalation (assigned Agent only).
+  const [escalateOpen, setEscalateOpen] = useState(false)
+  const [escalating, setEscalating] = useState(false)
+  const [escalateError, setEscalateError] = useState('')
 
   // Comment thread.
   const [comments, setComments] = useState([])
@@ -557,6 +607,27 @@ function TicketDetail() {
     }
   }
 
+  async function handleEscalate(reason) {
+    if (!reason) return
+    setEscalateError('')
+    setEscalating(true)
+    try {
+      await escalateTicket(id, reason)
+      setEscalateOpen(false)
+      // refresh() repaints the badge and the workflow panel, and the reason now
+      // shows in the staff conversation as an internal note.
+      await refresh()
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setEscalateError(err.message)
+    } finally {
+      setEscalating(false)
+    }
+  }
+
   const back = (
     <button className="td-back" onClick={() => navigate('/tickets')}>
       ← Back to tickets
@@ -618,6 +689,10 @@ function TicketDetail() {
     t.statusName === 'In Progress' &&
     t.assignedToUser?.id === userId
 
+  // The assigned agent can escalate an In-Progress ticket they're stuck on, but
+  // only once — the flag (t.isEscalated) hides the action after escalating.
+  const canEscalate = canAgentHandoff && !t.isEscalated
+
   const canConfirmFix =
     role === 'Employee' &&
     t.statusName === 'Pending' &&
@@ -650,6 +725,7 @@ function TicketDetail() {
                   <span className="td-ref">#{t.id}</span>
                   <Badge value={t.priorityName} cls={PRIORITY_META[t.priorityName]} />
                   <Badge value={t.statusName} cls={STATUS_META[t.statusName]} />
+                  {t.isEscalated && <Badge value="⬆ Escalated" cls="b-amber" />}
                   <Badge value={t.categoryName} cls="b-gray" />
                 </div>
                 <div className="td-title-row">
@@ -800,6 +876,17 @@ function TicketDetail() {
                 <div className="td-side-body">
                   <h2 className="td-side-title">Assignment</h2>
 
+                  {/* While escalated, the assigned agent is the escalator (any
+                      reassignment clears the flag), so name them directly. The
+                      reason lives in the internal note, so point there rather than
+                      duplicating it. */}
+                  {t.isEscalated && t.assignedToUser && (
+                    <p className="td-workflow-note">
+                      ⬆ {fullName(t.assignedToUser)} escalated this ticket. See their
+                      internal note in the conversation for why, then reassign or step in.
+                    </p>
+                  )}
+
                   <p className="td-workflow-hint">
                     {t.assignedToUser
                       ? `Currently handled by ${fullName(t.assignedToUser)}.`
@@ -877,6 +964,23 @@ function TicketDetail() {
                       >
                         {working ? 'Working…' : '✅ Mark as done — request confirmation'}
                       </button>
+
+                      {canEscalate ? (
+                        <button
+                          className="td-btn td-btn-block"
+                          onClick={() => {
+                            setEscalateError('')
+                            setEscalateOpen(true)
+                          }}
+                          disabled={working}
+                        >
+                          ⬆ Escalate to manager
+                        </button>
+                      ) : (
+                        <p className="td-workflow-note">
+                          ⬆ Escalated — awaiting a manager.
+                        </p>
+                      )}
                     </>
                   )}
 
@@ -928,6 +1032,16 @@ function TicketDetail() {
             error={assignError}
             onAssign={handleAssign}
             onClose={() => setAssignOpen(false)}
+          />
+        )}
+
+        {escalateOpen && (
+          <EscalateTicketModal
+            ticket={t}
+            escalating={escalating}
+            error={escalateError}
+            onEscalate={handleEscalate}
+            onClose={() => setEscalateOpen(false)}
           />
         )}
       </div>

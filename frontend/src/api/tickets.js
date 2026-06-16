@@ -246,6 +246,36 @@ export async function postComment(id, body, isInternal = false) {
   }
 }
 
+// Escalate an In-Progress ticket to a manager. Agent-only on the server, and only
+// for a ticket assigned to the caller; the reason is required and stored as a
+// staff-only internal note. The API returns 204 with no body.
+export async function escalateTicket(id, reason) {
+  const response = await fetch(`${TICKET_URL}/${id}/escalate`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ reason }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403 || response.status === 404) {
+    throw new Error('You can’t escalate this ticket.')
+  }
+  if (response.status === 409) {
+    // Not in progress, or already escalated.
+    throw new Error('This ticket can’t be escalated right now.')
+  }
+  if (!response.ok) {
+    // 400: empty or over-long reason.
+    throw new Error('Could not escalate. Please add a reason and try again.')
+  }
+}
+
 // Fetch a ticket's activity log (history/audit), oldest first. Access matches
 // ticket-view access on the server, so any user who can open the ticket can read
 // it. Returns [{ id, actionType, actionText, oldStatusName, newStatusName,

@@ -17,6 +17,7 @@ namespace HelpDesk.BLL.DTOs
         public string PriorityName { get; set; } = string.Empty;
         public int StatusId { get; set; }
         public string StatusName { get; set; } = string.Empty;
+        public bool IsEscalated { get; set; }
         public UserSummaryDto CreatedByUser { get; set; } = null!;
         public UserSummaryDto? AssignedByUser { get; set; }
         public UserSummaryDto? AssignedToUser { get; set; }

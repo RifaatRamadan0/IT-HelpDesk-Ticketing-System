@@ -371,6 +371,11 @@ function TicketList() {
                           value={t.statusName}
                           cls={STATUS_META[t.statusName]}
                         />
+                        {t.isEscalated && (
+                          <span className="tl-escalated" title="Escalated to a manager">
+                            {' '}⬆
+                          </span>
+                        )}
                       </td>
                       <td>
                         {isEmp ? (

@@ -210,6 +210,11 @@
   font-size: 13.5px;
 }
 
+.tl-escalated {
+  color: var(--amber);
+  font-weight: 700;
+}
+
 .tl-agent {
   display: inline-flex;
   align-items: center;

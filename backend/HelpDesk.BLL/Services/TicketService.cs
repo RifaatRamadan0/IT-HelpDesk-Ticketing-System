@@ -18,17 +18,20 @@ namespace HelpDesk.BLL.Services
         private readonly ITicketRepository _ticketRepository;
         private readonly IUserRepository _userRepository;
         private readonly IActivityLogRepository _activityRepository;
+        private readonly ITicketCommentRepository _commentRepository;
         private readonly IMapper _mapper;
 
         public TicketService(
             ITicketRepository ticketRepository,
             IUserRepository userRepository,
             IActivityLogRepository activityRepository,
+            ITicketCommentRepository commentRepository,
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
             _activityRepository = activityRepository;
+            _commentRepository = commentRepository;
             _mapper = mapper;
         }
 
@@ -80,12 +83,6 @@ namespace HelpDesk.BLL.Services
 
         }
 
-        // Status changes follow a role-specific state machine. A move is legal
-        // only if the (role, current status, target status) tuple is one of the
-        // allowed transitions below; everything else is rejected (controller maps
-        // that to 400). Resource ownership is enforced too — an Agent may only act
-        // on tickets assigned to them, an Employee only on tickets they created —
-        // matching the authorization model used elsewhere in this service.
         public async Task<bool> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole)
         {
             if (!Enum.IsDefined(typeof(TicketStatus), statusId))
@@ -128,6 +125,9 @@ namespace HelpDesk.BLL.Services
 
             ticket.StatusId = statusId;
             ticket.UpdatedDate = DateTime.UtcNow;
+
+            if (from == TicketStatus.InProgress && to != TicketStatus.InProgress)
+                ticket.IsEscalated = false;
 
             // The only way into Resolved is the employee's confirmation above;
             // stamp the resolution time. Resolved -> Closed keeps that timestamp.
@@ -173,6 +173,8 @@ namespace HelpDesk.BLL.Services
             ticket.AssignedByUserId = assignedByUserId;
             ticket.UpdatedDate = DateTime.UtcNow;
 
+            ticket.IsEscalated = false;
+
             await _ticketRepository.UpdateAsync(ticket);
 
             await _activityRepository.CreateAsync(new ActivityLog
@@ -184,6 +186,45 @@ namespace HelpDesk.BLL.Services
             });
 
             return AssignTicketResult.Assigned;
+        }
+
+        public async Task<EscalateTicketResult> EscalateTicketAsync(int ticketId, string reason, int requestingUserId)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                return EscalateTicketResult.TicketNotFound;
+
+            if (ticket.AssignedToUserId != requestingUserId)
+                return EscalateTicketResult.NotAssignedAgent;
+
+            if ((TicketStatus)ticket.StatusId != TicketStatus.InProgress)
+                return EscalateTicketResult.NotInProgress;
+
+            if (ticket.IsEscalated)
+                return EscalateTicketResult.AlreadyEscalated;
+
+            ticket.IsEscalated = true;
+            ticket.UpdatedDate = DateTime.UtcNow;
+            await _ticketRepository.UpdateAsync(ticket);
+
+            await _commentRepository.CreateAsync(new TicketComment
+            {
+                TicketId = ticketId,
+                CreatedByUserId = requestingUserId,
+                Body = reason,
+                IsInternal = true,
+                CreatedDate = DateTime.UtcNow
+            });
+
+            await _activityRepository.CreateAsync(new ActivityLog
+            {
+                TicketId = ticketId,
+                UserId = requestingUserId,
+                ActionType = ActivityAction.Escalated,
+                ActionText = "escalated this ticket"
+            });
+
+            return EscalateTicketResult.Escalated;
         }
 
         public async Task<bool> DeleteAsync(int ticketId, int requestingUserId)
