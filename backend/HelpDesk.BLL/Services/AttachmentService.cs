@@ -125,7 +125,7 @@ namespace HelpDesk.BLL.Services
             // file. If the file delete fails, the worst case is a harmless orphan
             // file (nothing references it) — never a row pointing at a missing file.
             await _attachmentRepository.DeleteAsync(attachment);
-            _fileStorage.Delete(attachment.FilePath);
+            await _fileStorage.DeleteAsync(attachment.FilePath);
 
             return DeleteAttachmentResult.Deleted;
         }

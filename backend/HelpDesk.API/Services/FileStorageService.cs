@@ -29,11 +29,12 @@ namespace HelpDesk_API.Services
             return await File.ReadAllBytesAsync(full);
         }
 
-        public void Delete(string storedFileName)
+        public Task DeleteAsync(string storedFileName)
         {
             var full = Path.Combine(_root, Path.GetFileName(storedFileName));
             if (File.Exists(full))
                 File.Delete(full);
+            return Task.CompletedTask;
         }
     }
 }

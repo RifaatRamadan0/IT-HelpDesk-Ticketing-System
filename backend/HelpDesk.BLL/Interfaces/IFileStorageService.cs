@@ -6,6 +6,6 @@ namespace HelpDesk.BLL.Interfaces
     {
         Task SaveAsync(byte[] content, string storedFileName);
         Task<byte[]?> ReadAsync(string storedFileName);
-        void Delete(string storedFileName);
+        Task DeleteAsync(string storedFileName);
     }
 }
