@@ -12,5 +12,8 @@ namespace HelpDesk.BLL.Interfaces
         Task<ICollection<AttachmentResponseDto>?> GetForTicketAsync(int ticketId, int requestingUserId, string? requestingUserRole);
 
         Task<AttachmentDownloadDto?> GetForDownloadAsync(int ticketId, int attachmentId, int requestingUserId, string? requestingUserRole);
+
+        // Only the uploader may delete their own attachment.
+        Task<DeleteAttachmentResult> DeleteAsync(int ticketId, int attachmentId, int requestingUserId);
     }
 }

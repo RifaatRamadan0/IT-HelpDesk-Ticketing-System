@@ -9,5 +9,6 @@ namespace HelpDesk.DAL.Interfaces
         Task<int> CreateAsync(Attachment attachment);
         Task<Attachment?> GetByIdAsync(int id);
         Task<ICollection<Attachment>> GetByTicketIdAsync(int ticketId);
+        Task DeleteAsync(Attachment attachment);
     }
 }

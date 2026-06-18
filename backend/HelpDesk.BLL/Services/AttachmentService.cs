@@ -112,6 +112,24 @@ namespace HelpDesk.BLL.Services
             };
         }
 
+        public async Task<DeleteAttachmentResult> DeleteAsync(int ticketId, int attachmentId, int requestingUserId)
+        {
+            var attachment = await _attachmentRepository.GetByIdAsync(attachmentId);
+            if (attachment == null || attachment.TicketId != ticketId)
+                return DeleteAttachmentResult.NotFound;
+
+            if (attachment.UploadedByUserId != requestingUserId)
+                return DeleteAttachmentResult.NotUploader;
+
+            // Delete order is the mirror of create: remove the DB row FIRST, then the
+            // file. If the file delete fails, the worst case is a harmless orphan
+            // file (nothing references it) — never a row pointing at a missing file.
+            await _attachmentRepository.DeleteAsync(attachment);
+            _fileStorage.Delete(attachment.FilePath);
+
+            return DeleteAttachmentResult.Deleted;
+        }
+
         // Accept a raw Base64 string or a data: URL ("data:image/png;base64,....").
         private static byte[] DecodeBase64(string content)
         {

@@ -253,6 +253,22 @@ namespace HelpDesk_API.Controllers
             return File(file.Content, file.ContentType, file.FileName);
         }
 
+        [HttpDelete("{id}/attachments/{attachmentId}")]
+        [Authorize(Roles = "Manager,Employee,Agent")]
+        public async Task<IActionResult> DeleteTicketAttachment(int id, int attachmentId)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var result = await _attachmentService.DeleteAsync(id, attachmentId, userId);
+            return result switch
+            {
+                DeleteAttachmentResult.Deleted => NoContent(),
+                DeleteAttachmentResult.NotFound => NotFound(),
+                DeleteAttachmentResult.NotUploader => Forbid(),
+                _ => StatusCode(500)
+            };
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> DeleteTicket(int id)

@@ -38,5 +38,11 @@ namespace HelpDesk.DAL.Repositories
                 .OrderBy(a => a.UploadedDate)
                 .ToListAsync();
         }
+
+        public async Task DeleteAsync(Attachment attachment)
+        {
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+        }
     }
 }
