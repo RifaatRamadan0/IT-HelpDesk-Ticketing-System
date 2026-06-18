@@ -429,3 +429,5 @@ FodyWeavers.xsd
 *.msp
 
 **/appsettings.Development.json
+# Uploaded ticket attachments (stored on disk, not in source control)
+backend/HelpDesk.API/Uploads/
