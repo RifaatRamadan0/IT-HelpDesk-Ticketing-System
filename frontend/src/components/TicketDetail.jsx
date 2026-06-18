@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   fetchTicketById,
@@ -10,6 +10,10 @@ import {
   fetchComments,
   postComment,
   fetchActivity,
+  fetchAttachments,
+  uploadAttachment,
+  downloadAttachment,
+  deleteAttachment,
   updateTicket,
   updateTicketStatus,
   SessionExpiredError,
@@ -234,6 +238,51 @@ function EditTicketModal({ ticket, onClose, onSaved }) {
   )
 }
 
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// One attachment row: icon, name, type · size, and a download button. Ported
+// from the design's AttChip. Downloading streams via fetch (auth header), so the
+// click goes through the parent's handler, not a bare link.
+function AttachmentChip({ attachment, onDownload, canDelete, onDelete }) {
+  const ext = attachment.fileName.split('.').pop()?.toUpperCase() || 'FILE'
+  return (
+    <div className="td-att">
+      <span className="td-att-icon">📄</span>
+      <div className="td-att-info">
+        <div className="td-att-name" title={attachment.fileName}>
+          {attachment.fileName}
+        </div>
+        <div className="td-att-meta">
+          {ext} · {formatFileSize(attachment.fileSize)}
+        </div>
+      </div>
+      <button
+        className="td-att-download"
+        onClick={() => onDownload(attachment)}
+        title="Download"
+        aria-label={`Download ${attachment.fileName}`}
+      >
+        ⬇
+      </button>
+      {canDelete && (
+        <button
+          className="td-att-delete"
+          onClick={() => onDelete(attachment)}
+          title="Delete"
+          aria-label={`Delete ${attachment.fileName}`}
+        >
+          🗑
+        </button>
+      )}
+    </div>
+  )
+}
+
 // A single comment in the thread: avatar + author + time, then the message
 // bubble. Ported from the design's CommentBubble.
 function CommentBubble({ comment }) {
@@ -421,6 +470,13 @@ function TicketDetail() {
   const [activityLoading, setActivityLoading] = useState(true)
   const [activityError, setActivityError] = useState('')
 
+  // Attachments (visible to anyone who can view the ticket; upload is stricter).
+  const [attachments, setAttachments] = useState([])
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [attachmentError, setAttachmentError] = useState('')
+  const fileInputRef = useRef(null)
+
   useEffect(() => {
     let cancelled = false
     fetchTicketById(id)
@@ -484,6 +540,10 @@ function TicketDetail() {
   // can already comment. Admin is read-only, so it's excluded here too.
   const canWriteInternal = canComment && (role === 'Manager' || role === 'Agent')
 
+  // Uploading an attachment is a write, same participant rule as commenting
+  // (Manager/Agent-assigned/Employee-own); Admin can view but not upload.
+  const canUploadAttachment = canComment
+
   // Load the thread once we know the ticket and the user may see it. Keyed on the
   // ticket so it also refreshes after actions that re-fetch the ticket.
   useEffect(() => {
@@ -529,6 +589,27 @@ function TicketDetail() {
     }
   }, [ticket, id, navigate])
 
+  // Load attachments once the ticket is known (any viewer can list them).
+  useEffect(() => {
+    if (!ticket) return
+    let cancelled = false
+    fetchAttachments(id)
+      .then((data) => {
+        if (!cancelled) setAttachments(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+        else setAttachmentError(err.message)
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [ticket, id, navigate])
+
   // Re-fetch the ticket so the page reflects new values, status and timestamps.
   async function refresh() {
     try {
@@ -536,6 +617,69 @@ function TicketDetail() {
       if (data) setTicket(data)
     } catch (err) {
       if (err instanceof SessionExpiredError) navigate('/login', { replace: true })
+    }
+  }
+
+  // Read the chosen file as a Base64 data URL, upload it, then refetch the list.
+  // A client-side size check is just UX — the server enforces the real limit.
+  async function handleFileSelected(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAttachmentError('')
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAttachmentError('The file exceeds the 5 MB limit.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    setUploading(true)
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(new Error('Could not read the file.'))
+        reader.readAsDataURL(file)
+      })
+      await uploadAttachment(id, file.name, dataUrl)
+      setAttachments(await fetchAttachments(id))
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setAttachmentError(err.message)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleDownload(attachment) {
+    setAttachmentError('')
+    try {
+      await downloadAttachment(id, attachment.id, attachment.fileName)
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setAttachmentError(err.message)
+    }
+  }
+
+  async function handleDeleteAttachment(attachment) {
+    if (!window.confirm(`Delete "${attachment.fileName}"?`)) return
+    setAttachmentError('')
+    try {
+      await deleteAttachment(id, attachment.id)
+      setAttachments(await fetchAttachments(id))
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setAttachmentError(err.message)
     }
   }
 
@@ -819,6 +963,58 @@ function TicketDetail() {
                 </div>
               </div>
             )}
+
+            {/* Attachments (any viewer can list/download; upload is stricter) */}
+            <div className="td-card">
+              <div className="td-comments">
+                <div className="td-att-head">
+                  <h2 className="td-side-title">Attachments</h2>
+                  {canUploadAttachment && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="td-att-input"
+                        accept=".png,.jpg,.jpeg,.gif,.pdf,.txt,.log,.csv,.docx,.xlsx,.zip"
+                        onChange={handleFileSelected}
+                        disabled={uploading}
+                      />
+                      <button
+                        className="td-btn td-btn-primary"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        {uploading ? 'Uploading…' : '📎 Upload file'}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {attachmentsLoading ? (
+                  <div className="td-comment-empty">Loading attachments…</div>
+                ) : attachments.length === 0 ? (
+                  <div className="td-comment-empty">
+                    <div className="td-comment-empty-title">No attachments</div>
+                  </div>
+                ) : (
+                  <div className="td-att-list">
+                    {attachments.map((a) => (
+                      <AttachmentChip
+                        key={a.id}
+                        attachment={a}
+                        onDownload={handleDownload}
+                        canDelete={a.uploadedByUser?.id === userId}
+                        onDelete={handleDeleteAttachment}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {attachmentError && (
+                  <div className="td-banner td-banner-sm">⚠ {attachmentError}</div>
+                )}
+              </div>
+            </div>
 
             {/* Activity / history (visible to anyone who can view the ticket) */}
             <div className="td-card">

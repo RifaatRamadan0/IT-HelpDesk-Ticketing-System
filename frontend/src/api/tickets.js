@@ -292,6 +292,93 @@ export async function fetchActivity(id) {
   return response.json()
 }
 
+// List a ticket's attachments (metadata only). Read access matches ticket-view
+// on the server, so any user who can open the ticket can list them. Returns
+// [{ id, fileName, contentType, fileSize, uploadedDate, uploadedByUser }].
+export async function fetchAttachments(id) {
+  const response = await fetch(`${TICKET_URL}/${id}/attachments`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load attachments.')
+  }
+  return response.json()
+}
+
+// Upload a file as a Base64 data URL. The server validates size, extension, and
+// magic bytes, returning 400 with a specific reason on failure.
+export async function uploadAttachment(id, fileName, content) {
+  const response = await fetch(`${TICKET_URL}/${id}/attachments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ fileName, content }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403 || response.status === 404) {
+    throw new Error('You can’t add attachments to this ticket.')
+  }
+  if (!response.ok) {
+    // 400 carries a specific reason (type/size/empty/content-mismatch).
+    const message = await response.text()
+    throw new Error(message || 'That file couldn’t be uploaded.')
+  }
+}
+
+// Download an attachment. The endpoint needs the Bearer token, so we can't use a
+// plain <a href> — fetch the bytes as a blob and trigger a save client-side. The
+// server already forces Content-Disposition: attachment; we also pass the name.
+export async function downloadAttachment(id, attachmentId, fileName) {
+  const response = await fetch(
+    `${TICKET_URL}/${id}/attachments/${attachmentId}/download`,
+    { headers: authHeader() },
+  )
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not download this file.')
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Delete an attachment. The API allows only the user who uploaded it (403 for
+// anyone else).
+export async function deleteAttachment(id, attachmentId) {
+  const response = await fetch(`${TICKET_URL}/${id}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: authHeader(),
+  })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403) {
+    throw new Error('You can only delete files you uploaded.')
+  }
+  if (!response.ok) {
+    throw new Error('Could not delete this file.')
+  }
+}
+
 // Edit an existing ticket. The API only allows the creating employee to update
 // it, and only while it's still Open (enforced in TicketService); a rejected
 // edit comes back as 400, surfaced here as a friendly message.

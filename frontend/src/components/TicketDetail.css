@@ -637,6 +637,93 @@
   border-color: var(--amber);
 }
 
+/* attachments */
+.td-att-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.td-att-head .td-side-title {
+  margin-bottom: 0;
+}
+
+.td-att-input {
+  display: none;
+}
+
+.td-att-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.td-att {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.td-att-icon {
+  font-size: 18px;
+  flex: none;
+}
+
+.td-att-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.td-att-name {
+  font-weight: 700;
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.td-att-meta {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.td-att-download {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.td-att-download:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.td-att-delete {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.td-att-delete:hover {
+  border-color: var(--red, #dc2626);
+  color: var(--red, #dc2626);
+}
+
 /* activity timeline */
 .td-timeline {
   position: relative;
