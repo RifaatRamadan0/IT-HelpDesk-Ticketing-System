@@ -45,6 +45,7 @@ namespace HelpDesk_API
             builder.Services.AddScoped<IRoleRepository, RoleRepository>();
             builder.Services.AddScoped<ITicketCommentRepository, TicketCommentRepository>();
             builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+            builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
@@ -55,6 +56,8 @@ namespace HelpDesk_API
             builder.Services.AddScoped<IRoleService, RoleService>();
             builder.Services.AddScoped<ITicketCommentService, TicketCommentService>();
             builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+            builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+            builder.Services.AddScoped<IFileStorageService, HelpDesk_API.Services.FileStorageService>();
 
             builder.Services.AddAutoMapper(cfg =>
                 cfg.AddMaps(typeof(HelpDesk.BLL.Mapping.MappingProfile).Assembly));

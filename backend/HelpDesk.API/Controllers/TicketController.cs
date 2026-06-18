@@ -16,15 +16,18 @@ namespace HelpDesk_API.Controllers
         private readonly ITicketService _ticketService;
         private readonly ITicketCommentService _commentService;
         private readonly IActivityLogService _activityService;
+        private readonly IAttachmentService _attachmentService;
 
         public TicketController(
             ITicketService ticketService,
             ITicketCommentService commentService,
-            IActivityLogService activityService)
+            IActivityLogService activityService,
+            IAttachmentService attachmentService)
         {
             _ticketService = ticketService;
             _commentService = commentService;
             _activityService = activityService;
+            _attachmentService = attachmentService;
         }
 
         [Authorize(Roles = "Employee")]
@@ -195,6 +198,59 @@ namespace HelpDesk_API.Controllers
                 return NotFound();
 
             return Ok(activity);
+        }
+
+        [HttpGet("{id}/attachments")]
+        [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        public async Task<IActionResult> GetTicketAttachments(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var attachments = await _attachmentService.GetForTicketAsync(id, userId, role);
+            if (attachments == null)
+                return NotFound();
+
+            return Ok(attachments);
+        }
+
+        [HttpPost("{id}/attachments")]
+        [Authorize(Roles = "Manager,Employee,Agent")]
+        public async Task<IActionResult> AddTicketAttachment(int id, [FromBody] CreateAttachmentRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var result = await _attachmentService.UploadAsync(id, request, userId, role);
+            return result switch
+            {
+                AttachmentUploadResult.Created => CreatedAtAction(nameof(GetTicketAttachments), new { id }, null),
+                AttachmentUploadResult.NoAccess => NotFound(),
+                AttachmentUploadResult.MalformedContent => BadRequest("The file content isn't valid."),
+                AttachmentUploadResult.InvalidFileType => BadRequest("That file type isn't allowed."),
+                AttachmentUploadResult.FileEmpty => BadRequest("The file is empty."),
+                AttachmentUploadResult.FileTooLarge => BadRequest("The file exceeds the 5 MB limit."),
+                AttachmentUploadResult.ContentMismatch => BadRequest("The file's contents don't match its extension."),
+                _ => StatusCode(500)
+            };
+        }
+
+        [HttpGet("{id}/attachments/{attachmentId}/download")]
+        [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        public async Task<IActionResult> DownloadTicketAttachment(int id, int attachmentId)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var file = await _attachmentService.GetForDownloadAsync(id, attachmentId, userId, role);
+            if (file == null)
+                return NotFound();
+
+            // Stop the browser from MIME-sniffing a different type than we declare.
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            // Passing a download name forces Content-Disposition: attachment, so even
+            // an HTML/SVG file is saved, never rendered inline in our origin.
+            return File(file.Content, file.ContentType, file.FileName);
         }
 
         [HttpDelete("{id}")]

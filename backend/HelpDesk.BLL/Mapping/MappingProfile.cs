@@ -35,8 +35,9 @@ namespace HelpDesk.BLL.Mapping
             CreateMap<ActivityLog, ActivityLogResponseDto>()
                 .ForMember(d => d.OldStatusName, o => o.MapFrom(s => s.OldStatus != null ? s.OldStatus.StatusName : null))
                 .ForMember(d => d.NewStatusName, o => o.MapFrom(s => s.NewStatus != null ? s.NewStatus.StatusName : null));
-            // CreatedByUser / AssignedByUser / AssignedToUser map by name using
-            // the User -> UserSummaryDto map above (nulls pass through as null).
+
+
+            CreateMap<Attachment, AttachmentResponseDto>();
         }
     }
 }

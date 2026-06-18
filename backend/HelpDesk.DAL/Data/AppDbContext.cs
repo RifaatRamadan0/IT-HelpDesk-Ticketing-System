@@ -32,6 +32,7 @@ namespace HelpDesk.DAL.Data
         public DbSet<Status> Statuses => Set<Status>();
         public DbSet<TicketComment> TicketComments => Set<TicketComment>();
         public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+        public DbSet<Attachment> Attachments => Set<Attachment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -115,6 +116,32 @@ namespace HelpDesk.DAL.Data
             modelBuilder.Entity<ActivityLog>()
                 .Property(a => a.ActionText)
                 .HasMaxLength(256);
+
+
+
+            modelBuilder.Entity<Attachment>()
+                .HasOne(a => a.Ticket)
+                .WithMany()
+                .HasForeignKey(a => a.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Attachment>()
+                .HasOne(a => a.UploadedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Attachment>()
+                .Property(a => a.FilePath)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<Attachment>()
+                .Property(a => a.FileName)
+                .HasMaxLength(255);
+
+            modelBuilder.Entity<Attachment>()
+                .Property(a => a.ContentType)
+                .HasMaxLength(100);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, CategoryName = "Hardware" },
