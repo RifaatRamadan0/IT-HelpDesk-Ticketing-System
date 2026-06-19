@@ -28,5 +28,10 @@ namespace HelpDesk.DAL.Repositories
                 .OrderBy(p => p.Id)
                 .ToListAsync();
         }
+
+        public async Task<bool> ExistsAsync(int id)
+        {
+            return await _context.Priorities.AnyAsync(p => p.Id == id);
+        }
     }
 }

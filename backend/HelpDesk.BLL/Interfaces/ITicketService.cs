@@ -10,7 +10,7 @@ namespace HelpDesk.BLL.Interfaces
 {
     public interface ITicketService
     {
-        Task<int> CreateAsync(CreateTicketRequestDto request, int createdByUserId);
+        Task<(CreateTicketResult Result, int? TicketId)> CreateAsync(CreateTicketRequestDto request, int createdByUserId);
         Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId);
         Task<UpdateStatusResult> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole);
         Task<AssignTicketResult> AssignTicketAsync(int ticketId, int agentUserId, int assignedByUserId);

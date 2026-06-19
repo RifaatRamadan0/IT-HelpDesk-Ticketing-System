@@ -35,16 +35,15 @@ namespace HelpDesk_API.Controllers
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            try
-            {
-                var ticketId = await _ticketService.CreateAsync(request, userId);
-                return CreatedAtAction(nameof(GetTicketById), new { id = ticketId }, null);
-            }
-            catch
-            {
-                return BadRequest("Failed to create ticket.");
-            }
 
+            var (result, ticketId) = await _ticketService.CreateAsync(request, userId);
+            return result switch
+            {
+                CreateTicketResult.Created => CreatedAtAction(nameof(GetTicketById), new { id = ticketId!.Value }, null),
+                CreateTicketResult.InvalidCategory => BadRequest("The selected category doesn't exist."),
+                CreateTicketResult.InvalidPriority => BadRequest("The selected priority doesn't exist."),
+                _ => StatusCode(500)
+            };
         }
 
         [HttpGet("{id}")]

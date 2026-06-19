@@ -21,7 +21,7 @@ function Login() {
       const { accessToken, refreshToken } = await login(email, password)
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
-      // Go to the Create Ticket screen; replace so Back doesn't return to login.
+      // Go to the dashboard; replace so Back doesn't return to login.
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err.message)

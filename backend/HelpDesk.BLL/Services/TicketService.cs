@@ -20,6 +20,8 @@ namespace HelpDesk.BLL.Services
         private readonly IUserRepository _userRepository;
         private readonly IActivityLogRepository _activityRepository;
         private readonly ITicketCommentRepository _commentRepository;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly IPriorityRepository _priorityRepository;
         private readonly IMapper _mapper;
 
         public TicketService(
@@ -27,17 +29,27 @@ namespace HelpDesk.BLL.Services
             IUserRepository userRepository,
             IActivityLogRepository activityRepository,
             ITicketCommentRepository commentRepository,
+            ICategoryRepository categoryRepository,
+            IPriorityRepository priorityRepository,
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
             _userRepository = userRepository;
             _activityRepository = activityRepository;
             _commentRepository = commentRepository;
+            _categoryRepository = categoryRepository;
+            _priorityRepository = priorityRepository;
             _mapper = mapper;
         }
 
-        public async Task<int> CreateAsync(CreateTicketRequestDto request, int createdByUserId)
+        public async Task<(CreateTicketResult Result, int? TicketId)> CreateAsync(CreateTicketRequestDto request, int createdByUserId)
         {
+            if (!await _categoryRepository.ExistsAsync(request.CategoryId))
+                return (CreateTicketResult.InvalidCategory, null);
+
+            if (!await _priorityRepository.ExistsAsync(request.PriorityId))
+                return (CreateTicketResult.InvalidPriority, null);
+
             var ticket = new Ticket
             {
                 Title = request.Title,
@@ -58,7 +70,7 @@ namespace HelpDesk.BLL.Services
                 ActionText = "created the ticket"
             });
 
-            return ticketId;
+            return (CreateTicketResult.Created, ticketId);
         }
 
         public async Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId)

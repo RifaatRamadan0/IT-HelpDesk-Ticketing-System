@@ -10,5 +10,6 @@ namespace HelpDesk.DAL.Interfaces
     public interface IPriorityRepository
     {
         Task<ICollection<Priority>> GetAllAsync();
+        Task<bool> ExistsAsync(int id);
     }
 }

@@ -10,5 +10,6 @@ namespace HelpDesk.DAL.Interfaces
     public interface ICategoryRepository
     {
         Task<ICollection<Category>> GetAllAsync();
+        Task<bool> ExistsAsync(int id);
     }
 }

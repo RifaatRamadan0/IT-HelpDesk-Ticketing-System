@@ -29,6 +29,7 @@ namespace HelpDesk.DAL.Repositories
         public async Task<ICollection<TicketComment>> GetByTicketIdAsync(int ticketId, bool includeInternal)
         {
             return await _context.TicketComments
+                .AsNoTracking()
                 .Include(c => c.CreatedByUser).ThenInclude(u => u.Role)
                 .Where(c => c.TicketId == ticketId)
                 .Where(c => includeInternal || !c.IsInternal)
