@@ -4,6 +4,7 @@ import {
   createTicket,
   fetchCategories,
   fetchPriorities,
+  uploadAttachment,
   SessionExpiredError,
 } from '../api/tickets'
 import './CreateTicket.css'
@@ -13,12 +14,25 @@ import './CreateTicket.css'
 // category and priority are required; attachments are optional. On success
 // the form swaps to a confirmation panel showing the new ticket's reference.
 
-const MAX_FILE_BYTES = 10 * 1e6 // 10 MB, per the design's stated limit
+// 5 MB — matches the limit the server actually enforces (AttachmentValidator),
+// so the client check and the backend reason string agree.
+const MAX_FILE_BYTES = 5 * 1024 * 1024
 
 function formatSize(bytes) {
   return bytes > 1e6
     ? (bytes / 1e6).toFixed(1) + ' MB'
     : Math.max(1, Math.round(bytes / 1024)) + ' KB'
+}
+
+// Read a File as a Base64 data URL, the shape uploadAttachment expects. Same
+// pattern as TicketDetail's upload flow.
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Could not read the file.'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function CreateTicket() {
@@ -67,6 +81,7 @@ function CreateTicket() {
 
   function addFiles(list) {
     const arr = Array.from(list).map((f) => ({
+      file: f, // keep the real File so its bytes can be uploaded at submit
       name: f.name,
       type: (f.name.split('.').pop() || 'FILE').toUpperCase(),
       size: formatSize(f.size),
@@ -80,17 +95,47 @@ function CreateTicket() {
     setSubmitError('')
     if (!valid) return
 
+    // Stop before creating the ticket if any file is over the limit — fix it first.
+    if (files.some((f) => f.big)) {
+      setSubmitError('Remove files larger than 5 MB before submitting.')
+      return
+    }
+
     setSubmitting(true)
     try {
-      // Attachments are shown for parity with the design but the current
-      // CreateTicketRequestDto has no file field, so they are not uploaded yet.
       const { id } = await createTicket({
         title: form.title.trim(),
         description: form.desc.trim(),
         categoryId: Number(form.category),
         priorityId: Number(form.priority),
       })
+
+      // The ticket now exists, so we upload attachments as a follow-up step
+      // against its id (there's no transactional create-with-files endpoint).
+      // A failed upload must not discard the ticket: collect the failures and
+      // still show success, reporting any files that didn't make it.
+      const failed = []
+      for (const item of files) {
+        try {
+          const dataUrl = await fileToDataUrl(item.file)
+          await uploadAttachment(id, item.name, dataUrl)
+        } catch (err) {
+          if (err instanceof SessionExpiredError) {
+            navigate('/login', { replace: true })
+            return
+          }
+          // Keep the server's specific reason (type/size/content) so the user
+          // knows *why* a file was rejected, not just that it failed.
+          failed.push(`${item.name} — ${err.message}`)
+        }
+      }
+
       setDone(id)
+      if (failed.length) {
+        setSubmitError(
+          `Ticket created, but these files didn't upload:\n${failed.join('\n')}`,
+        )
+      }
     } catch (err) {
       if (err instanceof SessionExpiredError) {
         navigate('/login', { replace: true })
@@ -269,7 +314,7 @@ function CreateTicket() {
                   📎 Drag &amp; drop files here, or click to browse
                 </div>
                 <div className="ct-dropzone-sub">
-                  Max 10 MB per file · JPG, PNG, PDF, LOG, ZIP supported
+                  Max 5 MB per file · JPG, PNG, GIF, PDF, DOCX, XLSX, ZIP, TXT, LOG, CSV
                 </div>
               </div>
               <input
@@ -290,7 +335,7 @@ function CreateTicket() {
                     <div className="ct-file-meta">
                       {f.type} · {f.size}
                       {f.big && (
-                        <span className="ct-file-over"> — exceeds 10 MB limit</span>
+                        <span className="ct-file-over"> — exceeds 5 MB limit</span>
                       )}
                     </div>
                   </div>

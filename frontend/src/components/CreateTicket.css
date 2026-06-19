@@ -262,6 +262,8 @@
   color: var(--red);
   font-weight: 600;
   font-size: 14.5px;
+  /* Per-file upload failures are joined with newlines; keep them on separate lines. */
+  white-space: pre-line;
 }
 
 /* buttons */
