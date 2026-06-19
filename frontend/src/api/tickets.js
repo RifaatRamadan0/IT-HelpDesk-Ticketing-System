@@ -404,3 +404,22 @@ export async function updateTicket(id, { title, description, categoryId, priorit
     throw new Error('This ticket can no longer be edited.')
   }
 }
+
+// Delete a ticket. The API only allows the creating employee to delete it, and
+// only while it's still Open (enforced in TicketService.DeleteAsync); a rejected
+// delete comes back as 400, surfaced here as a friendly message.
+export async function deleteTicket(id) {
+  const response = await fetch(`${TICKET_URL}/${id}`, {
+    method: 'DELETE',
+    headers: authHeader(),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    // 400 from the API: not the owner, or the ticket is no longer Open.
+    throw new Error('This ticket can no longer be deleted.')
+  }
+}

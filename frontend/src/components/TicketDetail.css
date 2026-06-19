@@ -292,6 +292,34 @@
   border-color: #2257cf;
 }
 
+/* Destructive action — shares the edit button's shape but reads as danger. */
+.td-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 14px;
+  color: #c0392b;
+  background: var(--surface);
+  border: 1px solid #e3b4ae;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.td-delete-btn:hover:not(:disabled) {
+  background: #fbecea;
+  border-color: #c0392b;
+}
+
+.td-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* workflow card */
 .td-btn-block {
   width: 100%;

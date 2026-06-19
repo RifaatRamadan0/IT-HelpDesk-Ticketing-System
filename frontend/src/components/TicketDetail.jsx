@@ -16,6 +16,7 @@ import {
   deleteAttachment,
   updateTicket,
   updateTicketStatus,
+  deleteTicket,
   SessionExpiredError,
 } from '../api/tickets'
 import { getRole, getUserId } from '../lib/auth'
@@ -445,6 +446,7 @@ function TicketDetail() {
   const [editing, setEditing] = useState(false)
   const [working, setWorking] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   // Assignment (Manager/Admin only).
   const [agents, setAgents] = useState([])
@@ -713,6 +715,26 @@ function TicketDetail() {
     await refresh()
   }
 
+  // Delete the ticket (creator + Open only, mirrored from the server guard).
+  // Deletion is irreversible, so confirm first; on success there's no ticket
+  // left to show, so we leave the page for the list.
+  async function handleDelete() {
+    setActionError('')
+    if (!window.confirm('Delete this ticket? This cannot be undone.')) return
+    setDeleting(true)
+    try {
+      await deleteTicket(id)
+      navigate('/tickets', { replace: true })
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setActionError(err.message)
+      setDeleting(false)
+    }
+  }
+
   // Drive a role-specific status transition. The API is the source of truth on
   // whether the move is legal; we just surface its rejection.
   async function changeStatus(targetName) {
@@ -826,6 +848,10 @@ function TicketDetail() {
     t.statusName === 'Open' &&
     t.createdByUser?.id === userId
 
+  // Delete shares the same guard as edit: only the creating employee, and only
+  // while the ticket is still Open — exactly what TicketService.DeleteAsync allows.
+  const canDelete = canEdit
+
   // Workflow actions mirror the backend state machine so we never show an action
   // the API would reject. Agent hands finished work back for confirmation; the
   // requester confirms the fix or sends unresolved work back to the agent.
@@ -884,7 +910,23 @@ function TicketDetail() {
                       ✏️ Edit
                     </button>
                   )}
+                  {canDelete && (
+                    <button
+                      className="td-delete-btn"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      title="Delete this ticket"
+                    >
+                      {deleting ? 'Deleting…' : '🗑️ Delete'}
+                    </button>
+                  )}
                 </div>
+                {/* The shared actionError banners live in the workflow/manager
+                    cards, which an employee viewing their own Open ticket won't
+                    see — so surface a failed delete here next to the button. */}
+                {canDelete && actionError && (
+                  <div className="td-banner td-banner-sm">⚠ {actionError}</div>
+                )}
                 <p className="td-desc">{t.description}</p>
               </div>
             </div>

@@ -34,7 +34,7 @@ namespace HelpDesk_API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequestDto request)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             var (result, ticketId) = await _ticketService.CreateAsync(request, userId);
             return result switch
