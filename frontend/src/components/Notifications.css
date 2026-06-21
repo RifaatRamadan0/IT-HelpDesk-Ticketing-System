@@ -1,0 +1,137 @@
+/* Notification center. Reuses the shell's design tokens (--surface, --line,
+   --muted, --primary, etc.), which are in scope because this page renders inside
+   .shell-main. */
+
+.notif-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.notif-state,
+.notif-banner {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  color: var(--muted);
+}
+
+.notif-banner {
+  border-color: #f3c6c0;
+  background: #fdecea;
+  color: #9a2c1c;
+}
+
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.notif-head-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.notif-readall {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.notif-readall:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: #cfd6e0;
+}
+
+.notif-readall:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 11px;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s, border-color 0.14s, box-shadow 0.14s;
+}
+
+.notif-row:hover {
+  border-color: #cfd6e0;
+  box-shadow: 0 1px 3px rgba(15, 23, 41, 0.06);
+}
+
+/* Unread rows get a tinted background and a heavier message so the eye lands on
+   them first. */
+.notif-row.unread {
+  background: #f3f7ff;
+  border-color: #d4e2fb;
+}
+
+.notif-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex: none;
+}
+
+.notif-msg {
+  flex: 1;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.notif-row.unread .notif-msg {
+  font-weight: 600;
+}
+
+.notif-time {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.notif-empty-icon {
+  font-size: 34px;
+  opacity: 0.6;
+}

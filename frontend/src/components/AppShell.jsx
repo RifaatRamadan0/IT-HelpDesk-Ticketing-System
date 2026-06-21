@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { getRole, getUserName, logout } from '../lib/auth'
 import { NAV, ROLE_LABELS, titleFor } from '../lib/nav'
+import { fetchUnreadCount } from '../api/notifications'
+import { SessionExpiredError } from '../api/tickets'
 import './AppShell.css'
 
 function initials(name) {
@@ -32,6 +35,16 @@ function AppShell() {
   const nav = NAV[role] ?? []
   const [eyebrow, title] = titleFor(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // No real-time push yet, so poll the unread tally on an interval to keep the
+  // bell badge roughly live. Shares the ['notifications'] key prefix with the
+  // notifications page, so marking things read there refreshes this badge too.
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: fetchUnreadCount,
+    refetchInterval: 30_000,
+    retry: (count, err) => !(err instanceof SessionExpiredError) && count < 1,
+  })
 
   const go = (to) => {
     setMobileOpen(false)
@@ -107,11 +120,14 @@ function AppShell() {
           </div>
           <div className="shell-spacer" />
           <button
-            className="shell-icon-btn"
+            className="shell-icon-btn shell-bell"
             onClick={() => go('/notifications')}
             title="Notifications"
           >
             🔔
+            {unreadCount > 0 && (
+              <span className="shell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
           </button>
           <span className="shell-avatar shell-avatar-sm">{initials(name)}</span>
         </header>
