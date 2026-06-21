@@ -3,6 +3,8 @@ using HelpDesk.BLL.Services;
 using HelpDesk.DAL.Data;
 using HelpDesk.DAL.Interfaces;
 using HelpDesk.DAL.Repositories;
+using HelpDesk_API.Hubs;
+using HelpDesk_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +21,7 @@ namespace HelpDesk_API
             // Add services to the container.
 
             builder.Services.AddControllers();
+            builder.Services.AddSignalR();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -34,7 +37,8 @@ namespace HelpDesk_API
                     policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          .WithExposedHeaders("Location");
+                          .WithExposedHeaders("Location")
+                          .AllowCredentials();
                 });
             });
 
@@ -60,6 +64,7 @@ namespace HelpDesk_API
             builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
             builder.Services.AddScoped<IAttachmentService, AttachmentService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<INotificationRealtime, NotificationRealtime>();
             builder.Services.AddScoped<IFileStorageService, HelpDesk_API.Services.FileStorageService>();
 
             builder.Services.AddAutoMapper(cfg =>
@@ -78,6 +83,20 @@ namespace HelpDesk_API
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -98,6 +117,7 @@ namespace HelpDesk_API
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<NotificationHub>("/hubs/notifications");
 
             app.Run();
         }

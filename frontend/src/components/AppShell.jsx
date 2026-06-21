@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getRole, getUserName, logout } from '../lib/auth'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { HubConnectionBuilder } from '@microsoft/signalr'
+import { getRole, getToken, getUserName, logout } from '../lib/auth'
 import { NAV, ROLE_LABELS, titleFor } from '../lib/nav'
 import { fetchUnreadCount } from '../api/notifications'
 import { SessionExpiredError } from '../api/tickets'
 import './AppShell.css'
+
+const HUB_URL = 'http://localhost:5175/hubs/notifications'
 
 function initials(name) {
   return (name || '?')
@@ -35,16 +38,33 @@ function AppShell() {
   const nav = NAV[role] ?? []
   const [eyebrow, title] = titleFor(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const queryClient = useQueryClient()
 
-  // No real-time push yet, so poll the unread tally on an interval to keep the
-  // bell badge roughly live. Shares the ['notifications'] key prefix with the
-  // notifications page, so marking things read there refreshes this badge too.
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: fetchUnreadCount,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
     retry: (count, err) => !(err instanceof SessionExpiredError) && count < 1,
   })
+
+  useEffect(() => {
+    if (!getToken()) return
+
+    const connection = new HubConnectionBuilder()
+      .withUrl(HUB_URL, { accessTokenFactory: () => getToken() })
+      .withAutomaticReconnect()
+      .build()
+
+    connection.on('ReceiveNotification', () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    })
+
+    connection.start().catch(() => {})
+
+    return () => {
+      connection.stop()
+    }
+  }, [queryClient])
 
   const go = (to) => {
     setMobileOpen(false)
