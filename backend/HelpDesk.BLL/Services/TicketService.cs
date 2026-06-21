@@ -9,6 +9,7 @@ using HelpDesk.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -290,6 +291,36 @@ namespace HelpDesk.BLL.Services
                 return null;
 
             return _mapper.Map<TicketResponseDto>(ticket);
+        }
+
+        public async Task<TicketStatisticsDto> GetStatisticsAsync(int requestingUserId, string? requestingUserRole)
+        {
+            Expression<Func<Ticket, bool>>? filter = requestingUserRole switch
+            {
+                "Employee" => t => t.CreatedByUserId == requestingUserId,
+                "Agent" => t => t.AssignedToUserId == requestingUserId,
+                _ => null
+            };
+
+            var stats = await _ticketRepository.GetStatisticsAsync(filter);
+
+            int CountFor(TicketStatus status) => stats.CountByStatus.GetValueOrDefault((int)status);
+
+            int total = stats.CountByStatus.Values.Sum();
+            int resolved = CountFor(TicketStatus.Resolved) + CountFor(TicketStatus.Closed);
+
+            return new TicketStatisticsDto
+            {
+                Total = total,
+                Open = total - resolved,
+                InProgress = CountFor(TicketStatus.InProgress),
+                Pending = CountFor(TicketStatus.Pending),
+                Resolved = resolved,
+                Critical = stats.CriticalOpen,
+                AvgResolutionHours = stats.AvgResolutionHours,
+                ByCategory = stats.CountByCategory,
+                ByPriority = stats.CountByPriority
+            };
         }
     }
 }

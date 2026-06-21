@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,5 +17,6 @@ namespace HelpDesk.DAL.Interfaces
         Task<ICollection<Ticket>> GetByCreatedUserIdAsync(int userId);
         Task<ICollection<Ticket>> GetByAssignedUserIdAsync(int userId);
         Task<ICollection<Ticket>> GetAllAsync();
+        Task<TicketStatistics> GetStatisticsAsync(Expression<Func<Ticket, bool>>? filter = null);
     }
 }

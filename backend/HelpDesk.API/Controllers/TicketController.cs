@@ -71,6 +71,17 @@ namespace HelpDesk_API.Controllers
             return Ok(tickets);
         }
 
+        [HttpGet("statistics")]
+        [Authorize(Roles = "Admin,Manager,Agent,Employee")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var stats = await _ticketService.GetStatisticsAsync(userId, role);
+            return Ok(stats);
+        }
+
         [HttpGet("assigned")]
         [Authorize(Roles = "Agent")]
         public async Task<IActionResult> GetAssignedTickets()

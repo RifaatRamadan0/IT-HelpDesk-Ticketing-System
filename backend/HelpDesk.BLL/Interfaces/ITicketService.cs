@@ -20,5 +20,6 @@ namespace HelpDesk.BLL.Interfaces
         Task<ICollection<TicketResponseDto>> GetAllAsync();
         Task<ICollection<TicketResponseDto>> GetByCreatedUserIdAsync(int userId);
         Task<ICollection<TicketResponseDto>> GetByAssignedUserIdAsync(int userId);
+        Task<TicketStatisticsDto> GetStatisticsAsync(int requestingUserId, string? requestingUserRole);
     }
 }
