@@ -100,6 +100,22 @@ export async function fetchTickets(role) {
   return response.json()
 }
 
+// Pre-aggregated dashboard figures. The API scopes the numbers to the caller's
+// role from the JWT, so there's nothing to pass. Shape: { total, open, inProgress,
+// pending, resolved, critical, avgResolutionHours, byCategory: { name: count },
+// byPriority: { name: count } }.
+export async function fetchTicketStats() {
+  const response = await fetch(`${TICKET_URL}/statistics`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load dashboard statistics.')
+  }
+  return response.json()
+}
+
 export async function createTicket({ title, description, categoryId, priorityId }) {
   const response = await fetch(TICKET_URL, {
     method: 'POST',

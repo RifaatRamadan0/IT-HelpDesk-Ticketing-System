@@ -1,6 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchTickets, SessionExpiredError } from '../api/tickets'
+import { useQuery } from '@tanstack/react-query'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { fetchTickets, fetchTicketStats, SessionExpiredError } from '../api/tickets'
 import { getRole, getUserName } from '../lib/auth'
 import './Dashboard.css'
 
@@ -18,6 +34,7 @@ const STATUS_META = {
   Closed: 'b-gray',
 }
 const CLOSED = ['Resolved', 'Closed']
+const TREND_DAYS = 14
 const CAT_COLORS = ['#3d6fd1', '#6b4bc0', '#c97b1d', '#2f8a4e', '#c63a26', '#0d9488']
 const PRIO_COLORS = { Low: '#2f8a4e', Medium: '#c97b1d', High: '#c63a26', Critical: '#bf2418' }
 
@@ -44,6 +61,15 @@ function formatShortDate(iso) {
   return Number.isNaN(d.getTime())
     ? ''
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+// Bucket key for a date: local YYYY-MM-DD. Bucketing on the local calendar day
+// (not the raw UTC instant) keeps a ticket created at 11pm in the user's day,
+// not pushed into tomorrow by the timezone offset.
+function dayKey(d) {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
 }
 
 function relativeTime(iso) {
@@ -87,55 +113,63 @@ function QueueRow({ t, onOpen }) {
   )
 }
 
+// Horizontal bar chart (category breakdown). Recharts handles the geometry,
+// axis, and hover tooltip; per-bar colour comes from the data via <Cell>.
 function Bars({ data }) {
-  const max = Math.max(1, ...data.map((d) => d.value))
   return (
-    <div className="dash-bars">
-      {data.map((d) => (
-        <div key={d.label} className="dash-bar-row">
-          <span className="dash-bar-label">{d.label}</span>
-          <div className="dash-bar-track">
-            <div
-              className="dash-bar-fill"
-              style={{ width: `${(d.value / max) * 100}%`, background: d.color }}
-            />
-          </div>
-          <span className="dash-bar-value">{d.value}</span>
-        </div>
-      ))}
-    </div>
+    <ResponsiveContainer width="100%" height={Math.max(120, data.length * 44)}>
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+        <XAxis type="number" allowDecimals={false} hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          width={90}
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 13, fill: 'var(--muted)' }}
+        />
+        <Tooltip cursor={{ fill: 'var(--surface-2)' }} formatter={(v) => [v, 'Tickets']} />
+        <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18} label={{ position: 'right', fontSize: 12 }}>
+          {data.map((d) => (
+            <Cell key={d.label} fill={d.color} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   )
 }
 
-// SVG donut, ported from the design (charts.jsx Donut). Segments are drawn with
-// stroke-dasharray on stacked circles, rotated so the first slice starts at top.
-function Donut({ data, size = 170, thickness = 28 }) {
-  const total = data.reduce((s, d) => s + d.value, 0) || 1
-  const r = (size - thickness) / 2
-  const c = size / 2
-  const circ = 2 * Math.PI * r
-  // Pure: each slice's length, and its start offset = sum of the slices before it.
-  const lens = data.map((d) => (d.value / total) * circ)
-  const offsets = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0))
+// Donut (priority breakdown). A Recharts <Pie> with an inner radius; the running
+// total is overlaid in the centre. Empty slices (value 0) are filtered so the
+// ring isn't padded with invisible segments.
+function Donut({ data }) {
+  const slices = data.filter((d) => d.value > 0)
+  const total = data.reduce((s, d) => s + d.value, 0)
   return (
     <div className="dash-donut">
-      <div className="dash-donut-ring" style={{ width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={c} cy={c} r={r} fill="none" stroke="var(--surface-2)" strokeWidth={thickness} />
-          {data.map((d, i) => (
-            <circle
-              key={d.label}
-              cx={c}
-              cy={c}
-              r={r}
-              fill="none"
-              stroke={d.color}
-              strokeWidth={thickness}
-              strokeDasharray={`${lens[i]} ${circ - lens[i]}`}
-              strokeDashoffset={-offsets[i]}
-            />
-          ))}
-        </svg>
+      <div className="dash-donut-ring">
+        <ResponsiveContainer width={170} height={170}>
+          <PieChart>
+            <Pie
+              data={slices}
+              dataKey="value"
+              nameKey="label"
+              cx="50%"
+              cy="50%"
+              innerRadius={57}
+              outerRadius={85}
+              startAngle={90}
+              endAngle={-270}
+              paddingAngle={slices.length > 1 ? 2 : 0}
+              stroke="none"
+            >
+              {slices.map((d) => (
+                <Cell key={d.label} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v, name) => [v, name]} />
+          </PieChart>
+        </ResponsiveContainer>
         <div className="dash-donut-center">
           <div className="dash-donut-total">{total}</div>
           <div className="dash-donut-cap">tickets</div>
@@ -159,69 +193,71 @@ function Dashboard() {
   const role = getRole()
   const name = getUserName()
 
-  const [tickets, setTickets] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // Row-level widgets (recent list, queue, trend, activity, agent performance)
+  // need the actual tickets, so the list query stays.
+  const {
+    data: tickets = [],
+    isLoading: ticketsLoading,
+    error: ticketsError,
+  } = useQuery({
+    queryKey: ['tickets', role],
+    queryFn: () => fetchTickets(role),
+    // A dead token (401 -> SessionExpiredError) won't recover by retrying, so
+    // fail fast and let the effect below bounce the user to /login.
+    retry: (count, err) => !(err instanceof SessionExpiredError) && count < 1,
+  })
 
+  // KPI numbers and the category/priority breakdowns come pre-aggregated from the
+  // server (scoped to the caller's role by the API), so the client no longer
+  // re-derives them — the "what counts as open/resolved/critical" rule lives once,
+  // on the backend.
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery({
+    queryKey: ['ticket-stats', role],
+    queryFn: fetchTicketStats,
+    retry: (count, err) => !(err instanceof SessionExpiredError) && count < 1,
+  })
+
+  const isLoading = ticketsLoading || statsLoading
+  const error = ticketsError || statsError
+
+  // A 401 on either query means the token is gone, so redirect to login rather
+  // than showing a dead-end error banner.
   useEffect(() => {
-    let cancelled = false
-    fetchTickets(role)
-      .then((list) => {
-        if (!cancelled) setTickets(list)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        if (err instanceof SessionExpiredError) {
-          navigate('/login', { replace: true })
-          return
-        }
-        setError(err.message)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
+    if (error instanceof SessionExpiredError) {
+      navigate('/login', { replace: true })
     }
-  }, [role, navigate])
+  }, [error, navigate])
 
-  const stats = useMemo(() => {
-    const open = tickets.filter((t) => !CLOSED.includes(t.statusName))
-    const resolved = tickets.filter((t) => CLOSED.includes(t.statusName))
-    const resolvedWithTimes = resolved.filter((t) => t.resolvedDate && t.createdDate)
-    const avgMs = resolvedWithTimes.length
-      ? resolvedWithTimes.reduce(
-          (sum, t) => sum + (new Date(t.resolvedDate) - new Date(t.createdDate)),
-          0,
-        ) / resolvedWithTimes.length
-      : 0
-    return {
-      total: tickets.length,
-      open: open.length,
-      inProgress: tickets.filter((t) => t.statusName === 'In Progress').length,
-      pending: tickets.filter((t) => t.statusName === 'Pending').length,
-      resolved: resolved.length,
-      critical: open.filter((t) => t.priorityName === 'Critical').length,
-      avgResolution: avgMs ? (avgMs / 36e5).toFixed(1) + 'h' : '—',
-      recent: [...tickets]
+  const recent = useMemo(
+    () =>
+      [...tickets]
         .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate))
         .slice(0, 5),
-    }
-  }, [tickets])
+    [tickets],
+  )
+
+  const avgResolution =
+    stats?.avgResolutionHours != null ? stats.avgResolutionHours.toFixed(1) + 'h' : '—'
 
   const open = (id) => navigate(`/tickets/${id}`)
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="dash-page">
         <div className="dash-state">Loading dashboard…</div>
       </div>
     )
   }
-  if (error) {
+  // Suppress the banner for an expired session — the effect above is already
+  // redirecting to /login, so showing an error would just flash.
+  if (error && !(error instanceof SessionExpiredError)) {
     return (
       <div className="dash-page">
-        <div className="dash-banner">⚠ {error}</div>
+        <div className="dash-banner">⚠ {error.message}</div>
       </div>
     )
   }
@@ -276,7 +312,7 @@ function Dashboard() {
             {isManagerOrAdmin && (
               <StatCard
                 label="Avg resolution"
-                value={stats.avgResolution}
+                value={avgResolution}
                 accent="#6b46d6"
               />
             )}
@@ -286,7 +322,7 @@ function Dashboard() {
 
       {isManagerOrAdmin ? (
         <>
-          <Breakdowns tickets={tickets} />
+          <Breakdowns byCategory={stats.byCategory} byPriority={stats.byPriority} />
           <div className="dash-grid-2">
             <div className="dash-card">
               <h3 className="dash-card-title">Agent Performance</h3>
@@ -299,42 +335,52 @@ function Dashboard() {
           </div>
         </>
       ) : (
-        <div className="dash-card">
-          <div className="dash-card-head">
-            <h3 className="dash-card-title">
-              {isEmployee ? 'My recent tickets' : 'Active queue'}
-            </h3>
-            <button className="dash-link" onClick={() => navigate('/tickets')}>
-              View all →
-            </button>
+        <>
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <h3 className="dash-card-title">
+                {isEmployee ? 'My recent tickets' : 'Active queue'}
+              </h3>
+              <button className="dash-link" onClick={() => navigate('/tickets')}>
+                View all →
+              </button>
+            </div>
+            {recent.length === 0 ? (
+              <div className="dash-empty">No tickets to show yet.</div>
+            ) : (
+              recent.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
+            )}
           </div>
-          {stats.recent.length === 0 ? (
-            <div className="dash-empty">No tickets to show yet.</div>
-          ) : (
-            stats.recent.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
+
+          {/* Agents get a personal workload trend below the queue: are they
+              keeping pace with what's coming in? Created uses the ticket's
+              creation date (there's no per-agent assignment date), which is the
+              best available proxy for "incoming". */}
+          {isAgent && (
+            <div className="dash-card">
+              <h3 className="dash-card-title">Created vs resolved · last {TREND_DAYS} days</h3>
+              <TicketTrend tickets={tickets} />
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   )
 }
 
-function Breakdowns({ tickets }) {
-  const catData = useMemo(() => {
-    const counts = {}
-    tickets.forEach((t) => {
-      counts[t.categoryName] = (counts[t.categoryName] || 0) + 1
-    })
-    return Object.entries(counts).map(([label, value], i) => ({
-      label: label === 'Access Request' ? 'Access' : label,
-      value,
-      color: CAT_COLORS[i % CAT_COLORS.length],
-    }))
-  }, [tickets])
+function Breakdowns({ byCategory, byPriority }) {
+  // The server returns each breakdown as a { name: count } map. Categories are
+  // taken as-is; priorities keep a fixed order so the legend/colours are stable
+  // even when a priority has no tickets.
+  const catData = Object.entries(byCategory ?? {}).map(([label, value], i) => ({
+    label: label === 'Access Request' ? 'Access' : label,
+    value,
+    color: CAT_COLORS[i % CAT_COLORS.length],
+  }))
 
   const prioData = ['Low', 'Medium', 'High', 'Critical'].map((p) => ({
     label: p,
-    value: tickets.filter((t) => t.priorityName === p).length,
+    value: byPriority?.[p] ?? 0,
     color: PRIO_COLORS[p],
   }))
 
@@ -410,6 +456,87 @@ function RecentActivity({ tickets, onOpen }) {
       <span className="dash-activity-time">{relativeTime(t.updatedDate)}</span>
     </div>
   ))
+}
+
+// Daily created-vs-resolved trend over the last TREND_DAYS. The window is
+// pre-seeded with zero-filled buckets so quiet days stay on the x-axis instead
+// of collapsing the line; tickets outside the window are simply ignored.
+function TicketTrend({ tickets }) {
+  const data = useMemo(() => {
+    const buckets = new Map()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    for (let i = TREND_DAYS - 1; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      buckets.set(dayKey(d), {
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        created: 0,
+        resolved: 0,
+      })
+    }
+
+    const bump = (iso, field) => {
+      if (!iso) return
+      const d = new Date(iso)
+      if (Number.isNaN(d.getTime())) return
+      const bucket = buckets.get(dayKey(d))
+      if (bucket) bucket[field] += 1
+    }
+
+    tickets.forEach((t) => {
+      bump(t.createdDate, 'created')
+      if (CLOSED.includes(t.statusName)) bump(t.resolvedDate, 'resolved')
+    })
+
+    return [...buckets.values()]
+  }, [tickets])
+
+  const hasData = data.some((d) => d.created || d.resolved)
+  if (!hasData) {
+    return <div className="dash-empty">No activity in the last {TREND_DAYS} days.</div>
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-2)" vertical={false} />
+        <XAxis
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={24}
+          tick={{ fontSize: 12, fill: 'var(--muted)' }}
+        />
+        <YAxis
+          allowDecimals={false}
+          width={28}
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 12, fill: 'var(--muted)' }}
+        />
+        <Tooltip />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="created"
+          name="Created"
+          stroke="#2f6bed"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="resolved"
+          name="Resolved"
+          stroke="#15924f"
+          strokeWidth={2}
+          dot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )
 }
 
 export default Dashboard

@@ -231,26 +231,8 @@
   flex: none;
 }
 
-/* bars */
-.dash-bars {
-  margin-top: 8px;
-}
-
-.dash-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.dash-bar-label {
-  width: 90px;
-  flex: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-
+/* bars — track/fill are reused by Agent Performance (the category chart is now
+   a Recharts BarChart, so the old row/label/value rules were removed) */
 .dash-bar-track {
   flex: 1;
   height: 12px;
@@ -265,15 +247,6 @@
   min-width: 2px;
 }
 
-.dash-bar-value {
-  width: 32px;
-  text-align: right;
-  flex: none;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
 /* donut */
 .dash-donut {
   display: flex;
@@ -286,6 +259,8 @@
 .dash-donut-ring {
   position: relative;
   flex: none;
+  width: 170px;
+  height: 170px;
 }
 
 .dash-donut-center {
