@@ -33,6 +33,7 @@ namespace HelpDesk.DAL.Data
         public DbSet<TicketComment> TicketComments => Set<TicketComment>();
         public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
         public DbSet<Attachment> Attachments => Set<Attachment>();
+        public DbSet<Notification> Notifications => Set<Notification>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -142,6 +143,22 @@ namespace HelpDesk.DAL.Data
             modelBuilder.Entity<Attachment>()
                 .Property(a => a.ContentType)
                 .HasMaxLength(100);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Ticket)
+                .WithMany()
+                .HasForeignKey(n => n.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.Message)
+                .HasMaxLength(256);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, CategoryName = "Hardware" },

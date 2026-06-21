@@ -17,17 +17,20 @@ namespace HelpDesk.BLL.Services
         private readonly ITicketCommentRepository _commentRepository;
         private readonly ITicketRepository _ticketRepository;
         private readonly IActivityLogRepository _activityRepository;
+        private readonly INotificationService _notificationService;
         private readonly IMapper _mapper;
 
         public TicketCommentService(
             ITicketCommentRepository commentRepository,
             ITicketRepository ticketRepository,
             IActivityLogRepository activityRepository,
+            INotificationService notificationService,
             IMapper mapper)
         {
             _commentRepository = commentRepository;
             _ticketRepository = ticketRepository;
             _activityRepository = activityRepository;
+            _notificationService = notificationService;
             _mapper = mapper;
         }
 
@@ -85,6 +88,12 @@ namespace HelpDesk.BLL.Services
                     ActionType = ActivityAction.CommentAdded,
                     ActionText = "added a comment"
                 });
+
+                var commentMessage = $"New comment on ticket #{ticketId}";
+                if (ticket.CreatedByUserId != requestingUserId)
+                    await _notificationService.NotifyUserAsync(ticket.CreatedByUserId, commentMessage, ticketId);
+                if (ticket.AssignedToUserId != null && ticket.AssignedToUserId != requestingUserId)
+                    await _notificationService.NotifyUserAsync(ticket.AssignedToUserId.Value, commentMessage, ticketId);
             }
 
             return commentId;

@@ -38,6 +38,8 @@ namespace HelpDesk.BLL.Mapping
 
 
             CreateMap<Attachment, AttachmentResponseDto>();
+
+            CreateMap<Notification, NotificationResponseDto>();
         }
     }
 }

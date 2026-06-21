@@ -23,6 +23,7 @@ namespace HelpDesk.BLL.Services
         private readonly ITicketCommentRepository _commentRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IPriorityRepository _priorityRepository;
+        private readonly INotificationService _notificationService;
         private readonly IMapper _mapper;
 
         public TicketService(
@@ -32,6 +33,7 @@ namespace HelpDesk.BLL.Services
             ITicketCommentRepository commentRepository,
             ICategoryRepository categoryRepository,
             IPriorityRepository priorityRepository,
+            INotificationService notificationService,
             IMapper mapper)
         {
             _ticketRepository = ticketRepository;
@@ -40,6 +42,7 @@ namespace HelpDesk.BLL.Services
             _commentRepository = commentRepository;
             _categoryRepository = categoryRepository;
             _priorityRepository = priorityRepository;
+            _notificationService = notificationService;
             _mapper = mapper;
         }
 
@@ -70,6 +73,9 @@ namespace HelpDesk.BLL.Services
                 ActionType = ActivityAction.Created,
                 ActionText = "created the ticket"
             });
+
+            await _notificationService.NotifyManagersAndAdminsAsync(
+                $"New ticket #{ticketId}: {ticket.Title}", ticketId, createdByUserId);
 
             return (CreateTicketResult.Created, ticketId);
         }
@@ -162,6 +168,12 @@ namespace HelpDesk.BLL.Services
                 NewStatusId = (int)to
             });
 
+            var statusMessage = $"Ticket #{ticketId} is now {to}";
+            if (ticket.CreatedByUserId != requestingUserId)
+                await _notificationService.NotifyUserAsync(ticket.CreatedByUserId, statusMessage, ticketId);
+            if (ticket.AssignedToUserId != null && ticket.AssignedToUserId != requestingUserId)
+                await _notificationService.NotifyUserAsync(ticket.AssignedToUserId.Value, statusMessage, ticketId);
+
             return UpdateStatusResult.Success;
         }
 
@@ -202,6 +214,9 @@ namespace HelpDesk.BLL.Services
                 ActionText = $"{(wasAssigned ? "reassigned" : "assigned")} to {agent.FirstName} {agent.LastName}"
             });
 
+            await _notificationService.NotifyUserAsync(
+                agentUserId, $"Ticket #{ticketId} was assigned to you", ticketId);
+
             return AssignTicketResult.Assigned;
         }
 
@@ -240,6 +255,9 @@ namespace HelpDesk.BLL.Services
                 ActionType = ActivityAction.Escalated,
                 ActionText = "escalated this ticket"
             });
+
+            await _notificationService.NotifyManagersAndAdminsAsync(
+                $"Ticket #{ticketId} was escalated", ticketId, requestingUserId);
 
             return EscalateTicketResult.Escalated;
         }
