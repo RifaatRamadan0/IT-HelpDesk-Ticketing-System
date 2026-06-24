@@ -146,6 +146,29 @@ export async function createTicket({ title, description, categoryId, priorityId 
   return { id }
 }
 
+export async function suggestClassification({ title, description }) {
+  const response = await fetch(`${TICKET_URL}/ai-suggest`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ title, description }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 503) {
+    throw new Error('AI suggestions are not available right now.')
+  }
+  if (!response.ok) {
+    throw new Error("Couldn't get an AI suggestion. Please try again.")
+  }
+  return response.json()
+}
+
 // Move a ticket to a new status. The API enforces a role-specific state machine
 // (e.g. an Agent may only move In Progress -> Pending on a ticket assigned to
 // them); an illegal transition comes back as 400, surfaced here as a friendly

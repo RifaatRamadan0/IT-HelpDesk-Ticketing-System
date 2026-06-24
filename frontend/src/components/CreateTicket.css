@@ -169,6 +169,87 @@
   margin-top: 6px;
 }
 
+.ct-suggest-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.ct-suggest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.06s;
+}
+
+.ct-suggest-btn:hover:not(:disabled) {
+  background: #dbe6fb;
+}
+
+.ct-suggest-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.ct-suggest-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ct-suggest-help {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ct-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+}
+
+.ct-suggestion-text {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.ct-suggestion-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 2px;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.ct-suggestion-dot {
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+.ct-suggestion-apply {
+  padding: 8px 18px;
+  font-size: 15px;
+}
+
 .ct-error {
   color: var(--red);
   font-size: 14px;

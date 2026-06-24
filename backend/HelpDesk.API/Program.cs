@@ -3,6 +3,7 @@ using HelpDesk.BLL.Services;
 using HelpDesk.DAL.Data;
 using HelpDesk.DAL.Interfaces;
 using HelpDesk.DAL.Repositories;
+using HelpDesk.Integrations.OpenAI;
 using HelpDesk_API.Hubs;
 using HelpDesk_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -66,6 +67,8 @@ namespace HelpDesk_API
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<INotificationRealtime, NotificationRealtime>();
             builder.Services.AddScoped<IFileStorageService, HelpDesk_API.Services.FileStorageService>();
+
+            builder.Services.AddScoped<IAiSuggestionService, AiSuggestionService>();
 
             builder.Services.AddAutoMapper(cfg =>
                 cfg.AddMaps(typeof(HelpDesk.BLL.Mapping.MappingProfile).Assembly));

@@ -4,6 +4,7 @@ import {
   createTicket,
   fetchCategories,
   fetchPriorities,
+  suggestClassification,
   uploadAttachment,
   SessionExpiredError,
 } from '../api/tickets'
@@ -48,6 +49,9 @@ function CreateTicket() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [done, setDone] = useState(null) // holds the created ticket ref once submitted
+  const [suggestion, setSuggestion] = useState(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const [suggestError, setSuggestError] = useState('')
   const fileRef = useRef(null)
   const navigate = useNavigate()
 
@@ -88,6 +92,41 @@ function CreateTicket() {
       big: f.size > MAX_FILE_BYTES,
     }))
     setFiles((prev) => [...prev, ...arr])
+  }
+
+  const canSuggest = form.title.trim() && form.desc.trim()
+
+  async function handleSuggest() {
+    setSuggestError('')
+    setSuggestion(null)
+    setSuggesting(true)
+    try {
+      const result = await suggestClassification({
+        title: form.title.trim(),
+        description: form.desc.trim(),
+      })
+      setSuggestion(result)
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setSuggestError(err.message)
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
+  function applySuggestion() {
+    if (!suggestion) return
+    const cat = categories.find(
+      (c) => c.name.toLowerCase() === (suggestion.categoryName || '').toLowerCase(),
+    )
+    const pri = priorities.find(
+      (p) => p.name.toLowerCase() === (suggestion.priorityName || '').toLowerCase(),
+    )
+    if (cat) set('category', String(cat.id))
+    if (pri) set('priority', String(pri.id))
   }
 
   async function handleSubmit() {
@@ -153,6 +192,8 @@ function CreateTicket() {
     setFiles([])
     setTouched(false)
     setSubmitError('')
+    setSuggestion(null)
+    setSuggestError('')
   }
 
   if (done) {
@@ -233,6 +274,45 @@ function CreateTicket() {
               />
               {touched && !form.desc.trim() && (
                 <div className="ct-error">⚠ Please describe the problem.</div>
+              )}
+
+              <div className="ct-suggest-row">
+                <button
+                  type="button"
+                  className="ct-suggest-btn"
+                  onClick={handleSuggest}
+                  disabled={!canSuggest || suggesting}
+                >
+                  {suggesting ? 'Thinking…' : '✨ Suggest with AI'}
+                </button>
+                <span className="ct-suggest-help">
+                  Let AI read your issue and pick a category &amp; priority.
+                </span>
+              </div>
+
+              {suggestError && <div className="ct-error">⚠ {suggestError}</div>}
+
+              {suggestion && (
+                <div className="ct-suggestion">
+                  <div className="ct-suggestion-text">
+                    AI suggests:{' '}
+                    <span className="ct-suggestion-chip">
+                      {suggestion.categoryName || 'No category'}
+                    </span>
+                    <span className="ct-suggestion-dot">·</span>
+                    <span className="ct-suggestion-chip">
+                      {suggestion.priorityName || 'No priority'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="ct-btn ct-btn-primary ct-suggestion-apply"
+                    onClick={applySuggestion}
+                    disabled={!suggestion.categoryName && !suggestion.priorityName}
+                  >
+                    Apply
+                  </button>
+                </div>
               )}
             </div>
 

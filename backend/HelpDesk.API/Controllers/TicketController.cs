@@ -2,7 +2,6 @@
 using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -17,17 +16,20 @@ namespace HelpDesk_API.Controllers
         private readonly ITicketCommentService _commentService;
         private readonly IActivityLogService _activityService;
         private readonly IAttachmentService _attachmentService;
+        private readonly IAiSuggestionService _aiSuggestionService;
 
         public TicketController(
             ITicketService ticketService,
             ITicketCommentService commentService,
             IActivityLogService activityService,
-            IAttachmentService attachmentService)
+            IAttachmentService attachmentService,
+            IAiSuggestionService aiSuggestionService)
         {
             _ticketService = ticketService;
             _commentService = commentService;
             _activityService = activityService;
             _attachmentService = attachmentService;
+            _aiSuggestionService = aiSuggestionService;
         }
 
         [Authorize(Roles = "Employee")]
@@ -42,6 +44,22 @@ namespace HelpDesk_API.Controllers
                 CreateTicketResult.Created => CreatedAtAction(nameof(GetTicketById), new { id = ticketId!.Value }, null),
                 CreateTicketResult.InvalidCategory => BadRequest("The selected category doesn't exist."),
                 CreateTicketResult.InvalidPriority => BadRequest("The selected priority doesn't exist."),
+                _ => StatusCode(500)
+            };
+        }
+
+        [HttpPost("ai-suggest")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> SuggestClassification([FromBody] AiSuggestRequestDto request)
+        {
+            var (result, suggestion) = await _aiSuggestionService.SuggestAsync(
+                request.Title, request.Description);
+
+            return result switch
+            {
+                AiSuggestResult.Success => Ok(suggestion),
+                AiSuggestResult.NotConfigured => StatusCode(503, "AI suggestions are not configured."),
+                AiSuggestResult.UpstreamError => StatusCode(502, "The AI service is unavailable right now."),
                 _ => StatusCode(500)
             };
         }
