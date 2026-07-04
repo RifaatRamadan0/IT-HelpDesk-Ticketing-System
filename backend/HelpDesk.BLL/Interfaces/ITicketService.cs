@@ -21,5 +21,7 @@ namespace HelpDesk.BLL.Interfaces
         Task<ICollection<TicketResponseDto>> GetByCreatedUserIdAsync(int userId);
         Task<ICollection<TicketResponseDto>> GetByAssignedUserIdAsync(int userId);
         Task<TicketStatisticsDto> GetStatisticsAsync(int requestingUserId, string? requestingUserRole);
+        Task<TimeTrackingResponseDto?> GetTimeTrackingAsync(int ticketId, int requestingUserId, string? requestingUserRole);
+        Task<TimerResult> SetTimerAsync(int ticketId, bool running, int requestingUserId, string? requestingUserRole);
     }
 }

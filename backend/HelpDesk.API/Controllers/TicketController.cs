@@ -184,6 +184,37 @@ namespace HelpDesk_API.Controllers
             };
         }
 
+        [HttpGet("{id}/time")]
+        [Authorize(Roles = "Admin,Manager,Agent")]
+        public async Task<IActionResult> GetTicketTime(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var time = await _ticketService.GetTimeTrackingAsync(id, userId, role);
+            if (time == null)
+                return NotFound();
+
+            return Ok(time);
+        }
+
+        [HttpPut("{id}/timer")]
+        [Authorize(Roles = "Agent")]
+        public async Task<IActionResult> SetTicketTimer(int id, [FromBody] SetTimerRequestDto request)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var result = await _ticketService.SetTimerAsync(id, request.Running, userId, role);
+            return result switch
+            {
+                TimerResult.Success => NoContent(),
+                TimerResult.TicketNotFound => NotFound(),
+                TimerResult.NotAuthorized => NotFound(),
+                _ => StatusCode(500)
+            };
+        }
+
         [HttpGet("{id}/comments")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
         public async Task<IActionResult> GetTicketComments(int id)

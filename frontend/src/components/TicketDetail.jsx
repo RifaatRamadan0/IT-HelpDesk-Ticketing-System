@@ -20,7 +20,9 @@ import {
   SessionExpiredError,
 } from '../api/tickets'
 import { getRole, getUserId } from '../lib/auth'
+import TimeTracker from './TimeTracker'
 import './TicketDetail.css'
+import './TimeTracker.css'
 
 // Badge colour maps, ported from the design (data.js), keyed by the API's
 // priorityName / statusName.
@@ -1109,6 +1111,15 @@ function TicketDetail() {
                 )}
               </div>
             </div>
+
+            {role !== 'Employee' && (
+              <TimeTracker
+                ticket={t}
+                role={role}
+                userId={userId}
+                onActivity={async () => setActivity(await fetchActivity(id))}
+              />
+            )}
 
             {canAssign && (
               <div className="td-card">

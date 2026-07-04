@@ -5,5 +5,6 @@ public enum ActivityAction
     Assigned,
     Reassigned,
     CommentAdded,
-    Escalated
+    Escalated,
+    TimeLogged
 }

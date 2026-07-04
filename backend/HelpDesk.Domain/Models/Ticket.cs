@@ -32,6 +32,9 @@ namespace HelpDesk.Domain.Models
 
         public bool IsEscalated { get; set; }
 
+        public int TimeSpentSeconds { get; set; } = 0;
+        public DateTime? TimerStartedAt { get; set; }
+
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedDate { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedDate { get; set; }

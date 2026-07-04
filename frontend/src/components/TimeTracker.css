@@ -1,0 +1,116 @@
+.tt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tt-title {
+  margin-bottom: 14px;
+}
+
+.tt-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tt-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.tt-run-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: tt-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes tt-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.tt-clock-box {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.3s;
+}
+
+.tt-clock-box.is-running {
+  border-left-color: var(--green);
+}
+
+.tt-clock {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-clock-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tt-effort {
+  margin-top: 4px;
+}
+
+.tt-effort-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.tt-effort-left {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.tt-effort-over {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.tt-bar {
+  height: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tt-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tt-effort-target {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 5px;
+}

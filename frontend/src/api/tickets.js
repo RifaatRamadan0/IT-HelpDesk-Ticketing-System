@@ -315,6 +315,43 @@ export async function escalateTicket(id, reason) {
   }
 }
 
+export async function fetchTimeTracking(id) {
+  const response = await fetch(`${TICKET_URL}/${id}/time`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error('Could not load time tracking.')
+  }
+  return response.json()
+}
+
+export async function setTimer(id, running) {
+  const response = await fetch(`${TICKET_URL}/${id}/timer`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+    },
+    body: JSON.stringify({ running }),
+  })
+
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (response.status === 403 || response.status === 404) {
+    throw new Error('You can’t track time on this ticket.')
+  }
+  if (!response.ok) {
+    throw new Error('Could not update the timer. Please try again.')
+  }
+}
+
 // Fetch a ticket's activity log (history/audit), oldest first. Access matches
 // ticket-view access on the server, so any user who can open the ticket can read
 // it. Returns [{ id, actionType, actionText, oldStatusName, newStatusName,

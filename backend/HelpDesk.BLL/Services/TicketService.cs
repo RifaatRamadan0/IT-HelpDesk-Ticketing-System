@@ -311,6 +311,78 @@ namespace HelpDesk.BLL.Services
             return _mapper.Map<TicketResponseDto>(ticket);
         }
 
+        private static bool CanViewTime(Ticket ticket, int userId, string? role) => role switch
+        {
+            "Admin" or "Manager" => true,
+            "Agent" => ticket.AssignedToUserId == userId,
+            _ => false
+        };
+
+        private static bool CanTrack(Ticket ticket, int userId, string? role) =>
+            role == "Agent" && ticket.AssignedToUserId == userId;
+
+        public async Task<TimeTrackingResponseDto?> GetTimeTrackingAsync(int ticketId, int requestingUserId, string? requestingUserRole)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null || !CanViewTime(ticket, requestingUserId, requestingUserRole))
+                return null;
+
+            return new TimeTrackingResponseDto
+            {
+                TimeSpentSeconds = ticket.TimeSpentSeconds,
+                TimerStartedAt = ticket.TimerStartedAt,
+                ServerTimeUtc = DateTime.UtcNow
+            };
+        }
+
+        public async Task<TimerResult> SetTimerAsync(int ticketId, bool running, int requestingUserId, string? requestingUserRole)
+        {
+            var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                return TimerResult.TicketNotFound;
+
+            if (!CanTrack(ticket, requestingUserId, requestingUserRole))
+                return TimerResult.NotAuthorized;
+
+            bool isRunning = ticket.TimerStartedAt != null;
+
+            if (running && !isRunning)
+            {
+                ticket.TimerStartedAt = DateTime.UtcNow;
+                ticket.UpdatedDate = DateTime.UtcNow;
+                await _ticketRepository.UpdateAsync(ticket);
+            }
+            else if (!running && isRunning)
+            {
+                var elapsed = (int)Math.Max(0, (DateTime.UtcNow - ticket.TimerStartedAt!.Value).TotalSeconds);
+                ticket.TimeSpentSeconds += elapsed;
+                ticket.TimerStartedAt = null;
+                ticket.UpdatedDate = DateTime.UtcNow;
+                await _ticketRepository.UpdateAsync(ticket);
+
+                if (elapsed >= 1)
+                {
+                    await _activityRepository.CreateAsync(new ActivityLog
+                    {
+                        TicketId = ticketId,
+                        UserId = requestingUserId,
+                        ActionType = ActivityAction.TimeLogged,
+                        ActionText = $"logged {FormatDuration(elapsed)} on the timer"
+                    });
+                }
+            }
+
+            return TimerResult.Success;
+        }
+
+        private static string FormatDuration(int seconds)
+        {
+            int h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60;
+            if (h > 0) return $"{h}h {m:D2}m";
+            if (m > 0) return $"{m}m";
+            return $"{s}s";
+        }
+
         public async Task<TicketStatisticsDto> GetStatisticsAsync(int requestingUserId, string? requestingUserRole)
         {
             Expression<Func<Ticket, bool>>? filter = requestingUserRole switch
