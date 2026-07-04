@@ -17,19 +17,22 @@ namespace HelpDesk_API.Controllers
         private readonly IActivityLogService _activityService;
         private readonly IAttachmentService _attachmentService;
         private readonly IAiSuggestionService _aiSuggestionService;
+        private readonly IReportPdfGenerator _reportPdfGenerator;
 
         public TicketController(
             ITicketService ticketService,
             ITicketCommentService commentService,
             IActivityLogService activityService,
             IAttachmentService attachmentService,
-            IAiSuggestionService aiSuggestionService)
+            IAiSuggestionService aiSuggestionService,
+            IReportPdfGenerator reportPdfGenerator)
         {
             _ticketService = ticketService;
             _commentService = commentService;
             _activityService = activityService;
             _attachmentService = attachmentService;
             _aiSuggestionService = aiSuggestionService;
+            _reportPdfGenerator = reportPdfGenerator;
         }
 
         [Authorize(Roles = "Employee")]
@@ -109,6 +112,21 @@ namespace HelpDesk_API.Controllers
 
             var report = await _ticketService.GetReportAsync(from, to);
             return Ok(report);
+        }
+
+        [HttpGet("report/export")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ExportReport([FromQuery] DateTime from, [FromQuery] DateTime to)
+        {
+            if (to <= from)
+                return BadRequest("'to' must be after 'from'.");
+
+            var report = await _ticketService.GetReportAsync(from, to);
+            var bytes = _reportPdfGenerator.Generate(report);
+
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            var fileName = $"report_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf";
+            return File(bytes, "application/pdf", fileName);
         }
 
         [HttpGet("assigned")]

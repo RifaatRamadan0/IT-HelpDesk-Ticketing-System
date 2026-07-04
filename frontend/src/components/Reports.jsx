@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { fetchReport, SessionExpiredError } from '../api/tickets'
+import { fetchReport, exportReportPdf, SessionExpiredError } from '../api/tickets'
 import { StatCard, Bars, Donut, TrendChart } from './DashboardWidgets'
 import { categoryChartData, priorityChartData } from './chartData'
 import './Dashboard.css'
@@ -65,6 +65,8 @@ function Reports() {
   const [presetKey, setPresetKey] = useState('30')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
 
   const range = useMemo(() => {
     if (presetKey === 'custom') return customRange(customFrom, customTo)
@@ -102,6 +104,23 @@ function Reports() {
   const backlogDelta = report ? report.created - report.resolved : 0
   const escalationRate = report && report.created > 0 ? (report.escalated / report.created) * 100 : 0
 
+  async function handleExport() {
+    if (!range || exporting) return
+    setExporting(true)
+    setExportError('')
+    try {
+      await exportReportPdf(range.from, range.to)
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        navigate('/login', { replace: true })
+        return
+      }
+      setExportError(err.message || 'Could not export the report.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="dash-page">
       <div className="rep-toolbar">
@@ -136,8 +155,17 @@ function Reports() {
               setPresetKey('custom')
             }}
           />
+          <button
+            className="rep-export"
+            onClick={handleExport}
+            disabled={!report || !range || exporting}
+          >
+            {exporting ? 'Exporting…' : 'Export PDF'}
+          </button>
         </div>
       </div>
+
+      {exportError && <div className="dash-banner">⚠ {exportError}</div>}
 
       {presetKey === 'custom' && !range && (
         <div className="dash-empty">Pick a start and end date to run the report.</div>

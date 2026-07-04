@@ -129,6 +129,28 @@ export async function fetchReport(from, to) {
   return response.json()
 }
 
+export async function exportReportPdf(from, to) {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+  const response = await fetch(`${TICKET_URL}/report/export?${params}`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not export the report.')
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `report_${from.toISOString().slice(0, 10)}_${to.toISOString().slice(0, 10)}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function createTicket({ title, description, categoryId, priorityId }) {
   const response = await fetch(TICKET_URL, {
     method: 'POST',

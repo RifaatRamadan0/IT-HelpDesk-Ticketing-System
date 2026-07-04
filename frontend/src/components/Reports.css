@@ -57,6 +57,29 @@
   font-weight: 700;
 }
 
+.rep-export {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 9px 14px;
+  margin-left: 4px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.rep-export:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.rep-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .rep-table {
   width: 100%;
   border-collapse: collapse;
