@@ -2,13 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchTimeTracking, setTimer, SessionExpiredError } from '../api/tickets'
 
-const EFFORT_TARGET = {
-  Low: 3600,
-  Medium: 7200,
-  High: 14400,
-  Critical: 21600,
-}
-
 function fmtDur(sec, clock) {
   sec = Math.max(0, Math.round(sec))
   const h = Math.floor(sec / 3600)
@@ -29,34 +22,6 @@ function useNow(active) {
     return () => clearInterval(id)
   }, [active])
   return now
-}
-
-function EffortBar({ total, target, accent }) {
-  if (!target) return null
-  const pct = Math.min(total / target, 1) * 100
-  const over = total > target
-  const barColor = over ? 'var(--amber)' : accent
-  return (
-    <div className="tt-effort">
-      <div className="tt-effort-head">
-        <span className="tt-muted">Effort vs target</span>
-        <span className={over ? 'tt-effort-over' : 'tt-effort-left'}>
-          {over
-            ? `+${fmtDur(total - target)} over`
-            : `${fmtDur(target - total)} left`}
-        </span>
-      </div>
-      <div className="tt-bar">
-        <div
-          className="tt-bar-fill"
-          style={{ width: `${Math.max(pct, 3)}%`, background: barColor }}
-        />
-      </div>
-      <div className="tt-effort-target">
-        Target {fmtDur(target)} · guideline for this priority
-      </div>
-    </div>
-  )
 }
 
 function TimeTracker({ ticket, role, userId, onActivity }) {
@@ -126,8 +91,6 @@ function TimeTracker({ ticket, role, userId, onActivity }) {
     ? Math.max(0, (now + skewMs - Date.parse(data.timerStartedAt)) / 1000)
     : 0
   const total = committed + live
-  const target = EFFORT_TARGET[ticket.priorityName] || 0
-  const accent = running ? 'var(--green)' : 'var(--primary)'
 
   async function toggle() {
     setError('')
@@ -184,8 +147,6 @@ function TimeTracker({ ticket, role, userId, onActivity }) {
             )}
           </div>
         </div>
-
-        <EffortBar total={total} target={target} accent={accent} />
 
         {error && <div className="td-banner td-banner-sm">⚠ {error}</div>}
       </div>
