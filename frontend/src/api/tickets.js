@@ -116,6 +116,19 @@ export async function fetchTicketStats() {
   return response.json()
 }
 
+export async function fetchReport(from, to) {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+  const response = await fetch(`${TICKET_URL}/report?${params}`, { headers: authHeader() })
+  if (response.status === 401) {
+    clearTokens()
+    throw new SessionExpiredError()
+  }
+  if (!response.ok) {
+    throw new Error('Could not load the report.')
+  }
+  return response.json()
+}
+
 export async function createTicket({ title, description, categoryId, priorityId }) {
   const response = await fetch(TICKET_URL, {
     method: 'POST',

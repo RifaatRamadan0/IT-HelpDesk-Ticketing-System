@@ -7,6 +7,7 @@ import TicketList from './components/TicketList'
 import TicketDetail from './components/TicketDetail'
 import Users from './components/Users'
 import Notifications from './components/Notifications'
+import Reports from './components/Reports'
 import Placeholder from './components/Placeholder'
 import ProtectedRoute from './components/ProtectedRoute'
 import { isLoggedIn } from './lib/auth'
@@ -32,8 +33,9 @@ function App() {
 
         <Route path="/notifications" element={<Notifications />} />
 
+        <Route path="/reports" element={<Reports />} />
+
         {/* Nav destinations from the design that aren't built yet. */}
-        <Route path="/reports" element={<Placeholder title="Reports" icon="📊" />} />
         <Route path="/kb" element={<Placeholder title="Knowledge Base" icon="📚" />} />
         <Route path="/users" element={<Users />} />
         <Route path="/admin" element={<Placeholder title="Admin Settings" icon="⚙️" />} />

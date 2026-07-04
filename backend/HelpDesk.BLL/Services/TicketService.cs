@@ -403,6 +403,7 @@ namespace HelpDesk.BLL.Services
             {
                 Total = total,
                 Open = total - resolved,
+                New = CountFor(TicketStatus.Open),
                 InProgress = CountFor(TicketStatus.InProgress),
                 Pending = CountFor(TicketStatus.Pending),
                 Resolved = resolved,
@@ -410,6 +411,53 @@ namespace HelpDesk.BLL.Services
                 AvgResolutionHours = stats.AvgResolutionHours,
                 ByCategory = stats.CountByCategory,
                 ByPriority = stats.CountByPriority
+            };
+        }
+
+        public async Task<ReportDto> GetReportAsync(DateTime from, DateTime to)
+        {
+            var stats = await _ticketRepository.GetReportStatisticsAsync(from, to);
+
+            var trend = new List<ReportTrendPointDto>();
+            for (var day = from.Date; day < to.Date; day = day.AddDays(1))
+            {
+                trend.Add(new ReportTrendPointDto
+                {
+                    Date = day,
+                    Created = stats.CreatedByDay.GetValueOrDefault(day),
+                    Resolved = stats.ResolvedByDay.GetValueOrDefault(day)
+                });
+            }
+
+            var byAgent = stats.ByAgent
+                .Select(a => new AgentPerformanceDto
+                {
+                    UserId = a.UserId,
+                    Name = a.Name,
+                    Resolved = a.Resolved,
+                    TimeSpentSeconds = a.TimeSpentSeconds,
+                    AvgResolutionHours = a.AvgResolutionHours
+                })
+                .OrderByDescending(a => a.Resolved)
+                .ToList();
+
+            double? avgHandlingSeconds = stats.Resolved > 0
+                ? (double)stats.TotalTimeSpentSeconds / stats.Resolved
+                : null;
+
+            return new ReportDto
+            {
+                From = from,
+                To = to,
+                Created = stats.Created,
+                Resolved = stats.Resolved,
+                Escalated = stats.Escalated,
+                AvgResolutionHours = stats.AvgResolutionHours,
+                AvgHandlingSeconds = avgHandlingSeconds,
+                ByCategory = stats.CreatedByCategory,
+                ByPriority = stats.CreatedByPriority,
+                Trend = trend,
+                ByAgent = byAgent
             };
         }
     }

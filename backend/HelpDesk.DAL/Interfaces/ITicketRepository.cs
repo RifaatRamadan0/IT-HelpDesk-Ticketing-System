@@ -1,4 +1,5 @@
-﻿using HelpDesk.Domain.Models;
+﻿using HelpDesk.DAL.Results;
+using HelpDesk.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,5 +19,6 @@ namespace HelpDesk.DAL.Interfaces
         Task<ICollection<Ticket>> GetByAssignedUserIdAsync(int userId);
         Task<ICollection<Ticket>> GetAllAsync();
         Task<TicketStatistics> GetStatisticsAsync(Expression<Func<Ticket, bool>>? filter = null);
+        Task<TicketReportStatistics> GetReportStatisticsAsync(DateTime from, DateTime to);
     }
 }

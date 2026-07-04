@@ -1,5 +1,6 @@
 ﻿using HelpDesk.DAL.Data;
 using HelpDesk.DAL.Interfaces;
+using HelpDesk.DAL.Results;
 using HelpDesk.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -134,6 +135,71 @@ namespace HelpDesk.DAL.Repositories
                 CountByCategory = countByCategory,
                 CriticalOpen = criticalOpen,
                 AvgResolutionHours = avgResolutionHours
+            };
+        }
+
+        public async Task<TicketReportStatistics> GetReportStatisticsAsync(DateTime from, DateTime to)
+        {
+            IQueryable<Ticket> created = _context.Tickets
+                .Where(t => t.CreatedDate >= from && t.CreatedDate < to);
+            IQueryable<Ticket> resolved = _context.Tickets
+                .Where(t => t.ResolvedDate != null && t.ResolvedDate >= from && t.ResolvedDate < to);
+
+            int createdCount = await created.CountAsync();
+            int resolvedCount = await resolved.CountAsync();
+            int escalatedCount = await created.CountAsync(t => t.IsEscalated);
+            long totalTimeSpentSeconds = await resolved.SumAsync(t => (long)t.TimeSpentSeconds);
+
+            var createdByCategory = await created
+                .GroupBy(t => t.Category.CategoryName)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            var createdByPriority = await created
+                .GroupBy(t => t.Priority.PriorityName)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            var createdByDay = await created
+                .GroupBy(t => t.CreatedDate.Date)
+                .Select(g => new { Day = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Day, x => x.Count);
+
+            var resolvedByDay = await resolved
+                .GroupBy(t => t.ResolvedDate!.Value.Date)
+                .Select(g => new { Day = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Day, x => x.Count);
+
+            double? avgResolutionHours = await resolved
+                .Select(t => (double?)EF.Functions.DateDiffSecond(t.CreatedDate, t.ResolvedDate!.Value) / 3600.0)
+                .AverageAsync();
+
+            var byAgent = await resolved
+                .Where(t => t.AssignedToUserId != null)
+                .GroupBy(t => new { t.AssignedToUserId, t.AssignedToUser!.FirstName, t.AssignedToUser.LastName })
+                .Select(g => new AgentReportRow
+                {
+                    UserId = g.Key.AssignedToUserId!.Value,
+                    Name = g.Key.FirstName + " " + g.Key.LastName,
+                    Resolved = g.Count(),
+                    TimeSpentSeconds = g.Sum(t => (long)t.TimeSpentSeconds),
+                    AvgResolutionHours = g.Average(t =>
+                        (double?)EF.Functions.DateDiffSecond(t.CreatedDate, t.ResolvedDate!.Value) / 3600.0)
+                })
+                .ToListAsync();
+
+            return new TicketReportStatistics
+            {
+                Created = createdCount,
+                Resolved = resolvedCount,
+                Escalated = escalatedCount,
+                TotalTimeSpentSeconds = totalTimeSpentSeconds,
+                AvgResolutionHours = avgResolutionHours,
+                CreatedByCategory = createdByCategory,
+                CreatedByPriority = createdByPriority,
+                CreatedByDay = createdByDay,
+                ResolvedByDay = resolvedByDay,
+                ByAgent = byAgent
             };
         }
     }

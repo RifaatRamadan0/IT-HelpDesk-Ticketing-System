@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace HelpDesk.DAL.Interfaces
+namespace HelpDesk.DAL.Results
 {
     public class TicketStatistics
     {

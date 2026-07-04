@@ -1,23 +1,10 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { fetchTickets, fetchTicketStats, SessionExpiredError } from '../api/tickets'
 import { getRole, getUserName } from '../lib/auth'
+import { StatCard, Bars, Donut, TrendChart } from './DashboardWidgets'
+import { categoryChartData, priorityChartData } from './chartData'
 import './Dashboard.css'
 
 const PRIORITY_META = {
@@ -34,9 +21,8 @@ const STATUS_META = {
   Closed: 'b-gray',
 }
 const CLOSED = ['Resolved', 'Closed']
+const PRIORITY_RANK = { Low: 1, Medium: 2, High: 3, Critical: 4 }
 const TREND_DAYS = 14
-const CAT_COLORS = ['#3d6fd1', '#6b4bc0', '#c97b1d', '#2f8a4e', '#c63a26', '#0d9488']
-const PRIO_COLORS = { Low: '#2f8a4e', Medium: '#c97b1d', High: '#c63a26', Critical: '#bf2418' }
 
 function firstName(name) {
   return (name || '').split(' ')[0]
@@ -83,18 +69,6 @@ function relativeTime(iso) {
   return Math.floor(s / 86400) + 'd ago'
 }
 
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div className="dash-stat" style={{ borderTopColor: accent }}>
-      <div className="dash-stat-value" style={{ color: accent }}>
-        {value}
-      </div>
-      <div className="dash-stat-label">{label}</div>
-      {sub && <div className="dash-stat-sub">{sub}</div>}
-    </div>
-  )
-}
-
 function QueueRow({ t, onOpen }) {
   return (
     <div className="dash-row" onClick={() => onOpen(t.id)}>
@@ -109,81 +83,6 @@ function QueueRow({ t, onOpen }) {
         {t.statusName}
       </span>
       <span className="dash-row-date">{formatShortDate(t.createdDate)}</span>
-    </div>
-  )
-}
-
-// Horizontal bar chart (category breakdown). Recharts handles the geometry,
-// axis, and hover tooltip; per-bar colour comes from the data via <Cell>.
-function Bars({ data }) {
-  return (
-    <ResponsiveContainer width="100%" height={Math.max(120, data.length * 44)}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-        <XAxis type="number" allowDecimals={false} hide />
-        <YAxis
-          type="category"
-          dataKey="label"
-          width={90}
-          tickLine={false}
-          axisLine={false}
-          tick={{ fontSize: 13, fill: 'var(--muted)' }}
-        />
-        <Tooltip cursor={{ fill: 'var(--surface-2)' }} formatter={(v) => [v, 'Tickets']} />
-        <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18} label={{ position: 'right', fontSize: 12 }}>
-          {data.map((d) => (
-            <Cell key={d.label} fill={d.color} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  )
-}
-
-// Donut (priority breakdown). A Recharts <Pie> with an inner radius; the running
-// total is overlaid in the centre. Empty slices (value 0) are filtered so the
-// ring isn't padded with invisible segments.
-function Donut({ data }) {
-  const slices = data.filter((d) => d.value > 0)
-  const total = data.reduce((s, d) => s + d.value, 0)
-  return (
-    <div className="dash-donut">
-      <div className="dash-donut-ring">
-        <ResponsiveContainer width={170} height={170}>
-          <PieChart>
-            <Pie
-              data={slices}
-              dataKey="value"
-              nameKey="label"
-              cx="50%"
-              cy="50%"
-              innerRadius={57}
-              outerRadius={85}
-              startAngle={90}
-              endAngle={-270}
-              paddingAngle={slices.length > 1 ? 2 : 0}
-              stroke="none"
-            >
-              {slices.map((d) => (
-                <Cell key={d.label} fill={d.color} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(v, name) => [v, name]} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="dash-donut-center">
-          <div className="dash-donut-total">{total}</div>
-          <div className="dash-donut-cap">tickets</div>
-        </div>
-      </div>
-      <div className="dash-legend">
-        {data.map((d) => (
-          <div key={d.label} className="dash-legend-row">
-            <span className="dash-legend-dot" style={{ background: d.color }} />
-            <span className="dash-legend-label">{d.label}</span>
-            <span className="dash-legend-val">{d.value}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -240,6 +139,20 @@ function Dashboard() {
     [tickets],
   )
 
+  const activeQueue = useMemo(
+    () =>
+      [...tickets]
+        .filter((t) => !CLOSED.includes(t.statusName))
+        .sort((a, b) => {
+          const byPriority =
+            (PRIORITY_RANK[b.priorityName] ?? 0) - (PRIORITY_RANK[a.priorityName] ?? 0)
+          if (byPriority !== 0) return byPriority
+          return new Date(a.createdDate) - new Date(b.createdDate)
+        })
+        .slice(0, 5),
+    [tickets],
+  )
+
   const avgResolution =
     stats?.avgResolutionHours != null ? stats.avgResolutionHours.toFixed(1) + 'h' : '—'
 
@@ -273,7 +186,7 @@ function Dashboard() {
           <div>
             <h2 className="dash-hero-title">Hi {firstName(name)} 👋</h2>
             <div className="dash-hero-sub">
-              You have <b>{stats.open}</b> open{' '}
+              You have <b>{stats.open}</b> active{' '}
               {stats.open === 1 ? 'request' : 'requests'}. Need a hand with
               something?
             </div>
@@ -299,8 +212,9 @@ function Dashboard() {
       <div className="dash-stats">
         {isEmployee ? (
           <>
-            <StatCard label="Open requests" value={stats.open} accent="#2f6bed" />
+            <StatCard label="Open requests" value={stats.new} accent="#2f6bed" />
             <StatCard label="In progress" value={stats.inProgress} accent="#b07910" />
+            <StatCard label="Needs your input" value={stats.pending} accent="#6b46d6" />
             <StatCard label="Resolved" value={stats.resolved} accent="#15924f" />
           </>
         ) : (
@@ -345,11 +259,17 @@ function Dashboard() {
                 View all →
               </button>
             </div>
-            {recent.length === 0 ? (
-              <div className="dash-empty">No tickets to show yet.</div>
-            ) : (
-              recent.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
-            )}
+            {(() => {
+              const list = isAgent ? activeQueue : recent
+              if (list.length === 0) {
+                return (
+                  <div className="dash-empty">
+                    {isAgent ? 'Nothing in your queue — you’re all caught up. 🎉' : 'No tickets to show yet.'}
+                  </div>
+                )
+              }
+              return list.map((t) => <QueueRow key={t.id} t={t} onOpen={open} />)
+            })()}
           </div>
 
           {/* Agents get a personal workload trend below the queue: are they
@@ -369,20 +289,8 @@ function Dashboard() {
 }
 
 function Breakdowns({ byCategory, byPriority }) {
-  // The server returns each breakdown as a { name: count } map. Categories are
-  // taken as-is; priorities keep a fixed order so the legend/colours are stable
-  // even when a priority has no tickets.
-  const catData = Object.entries(byCategory ?? {}).map(([label, value], i) => ({
-    label: label === 'Access Request' ? 'Access' : label,
-    value,
-    color: CAT_COLORS[i % CAT_COLORS.length],
-  }))
-
-  const prioData = ['Low', 'Medium', 'High', 'Critical'].map((p) => ({
-    label: p,
-    value: byPriority?.[p] ?? 0,
-    color: PRIO_COLORS[p],
-  }))
+  const catData = categoryChartData(byCategory)
+  const prioData = priorityChartData(byPriority)
 
   return (
     <div className="dash-grid-2">
@@ -497,46 +405,7 @@ function TicketTrend({ tickets }) {
     return <div className="dash-empty">No activity in the last {TREND_DAYS} days.</div>
   }
 
-  return (
-    <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-2)" vertical={false} />
-        <XAxis
-          dataKey="label"
-          tickLine={false}
-          axisLine={false}
-          interval="preserveStartEnd"
-          minTickGap={24}
-          tick={{ fontSize: 12, fill: 'var(--muted)' }}
-        />
-        <YAxis
-          allowDecimals={false}
-          width={28}
-          tickLine={false}
-          axisLine={false}
-          tick={{ fontSize: 12, fill: 'var(--muted)' }}
-        />
-        <Tooltip />
-        <Legend />
-        <Line
-          type="monotone"
-          dataKey="created"
-          name="Created"
-          stroke="#2f6bed"
-          strokeWidth={2}
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="resolved"
-          name="Resolved"
-          stroke="#15924f"
-          strokeWidth={2}
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  )
+  return <TrendChart data={data} />
 }
 
 export default Dashboard

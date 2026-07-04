@@ -100,6 +100,17 @@ namespace HelpDesk_API.Controllers
             return Ok(stats);
         }
 
+        [HttpGet("report")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetReport([FromQuery] DateTime from, [FromQuery] DateTime to)
+        {
+            if (to <= from)
+                return BadRequest("'to' must be after 'from'.");
+
+            var report = await _ticketService.GetReportAsync(from, to);
+            return Ok(report);
+        }
+
         [HttpGet("assigned")]
         [Authorize(Roles = "Agent")]
         public async Task<IActionResult> GetAssignedTickets()

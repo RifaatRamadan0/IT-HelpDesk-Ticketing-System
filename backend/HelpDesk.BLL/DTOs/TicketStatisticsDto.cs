@@ -6,6 +6,7 @@ namespace HelpDesk.BLL.DTOs
     {
         public int Total { get; set; }
         public int Open { get; set; }
+        public int New { get; set; }
         public int InProgress { get; set; }
         public int Pending { get; set; }
         public int Resolved { get; set; }

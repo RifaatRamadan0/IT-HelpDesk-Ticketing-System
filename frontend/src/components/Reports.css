@@ -1,0 +1,90 @@
+.rep-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.rep-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rep-preset {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.rep-preset:hover {
+  background: var(--surface-2);
+}
+
+.rep-preset.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.rep-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rep-custom input[type='date'] {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.rep-custom-sep {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.rep-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.rep-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rep-table td {
+  padding: 12px 6px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rep-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rep-table th.rep-num,
+.rep-table td.rep-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
