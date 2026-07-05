@@ -6,6 +6,7 @@ import { getRole, getToken, getUserName, logout } from '../lib/auth'
 import { NAV, ROLE_LABELS, titleFor } from '../lib/nav'
 import { fetchUnreadCount } from '../api/notifications'
 import { SessionExpiredError } from '../api/tickets'
+import ChatWidget from './ChatWidget'
 import './AppShell.css'
 
 const HUB_URL = 'http://localhost:5175/hubs/notifications'
@@ -156,6 +157,8 @@ function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {role === 'Employee' && <ChatWidget />}
     </div>
   )
 }

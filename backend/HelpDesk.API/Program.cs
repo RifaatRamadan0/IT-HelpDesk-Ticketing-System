@@ -69,6 +69,7 @@ namespace HelpDesk_API
             builder.Services.AddScoped<IFileStorageService, HelpDesk_API.Services.FileStorageService>();
 
             builder.Services.AddScoped<IAiSuggestionService, AiSuggestionService>();
+            builder.Services.AddScoped<IAiChatService, AiChatService>();
             builder.Services.AddScoped<IReportPdfGenerator, ReportPdfGenerator>();
 
             QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;

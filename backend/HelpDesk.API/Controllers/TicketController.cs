@@ -17,6 +17,7 @@ namespace HelpDesk_API.Controllers
         private readonly IActivityLogService _activityService;
         private readonly IAttachmentService _attachmentService;
         private readonly IAiSuggestionService _aiSuggestionService;
+        private readonly IAiChatService _aiChatService;
         private readonly IReportPdfGenerator _reportPdfGenerator;
 
         public TicketController(
@@ -25,6 +26,7 @@ namespace HelpDesk_API.Controllers
             IActivityLogService activityService,
             IAttachmentService attachmentService,
             IAiSuggestionService aiSuggestionService,
+            IAiChatService aiChatService,
             IReportPdfGenerator reportPdfGenerator)
         {
             _ticketService = ticketService;
@@ -32,6 +34,7 @@ namespace HelpDesk_API.Controllers
             _activityService = activityService;
             _attachmentService = attachmentService;
             _aiSuggestionService = aiSuggestionService;
+            _aiChatService = aiChatService;
             _reportPdfGenerator = reportPdfGenerator;
         }
 
@@ -63,6 +66,21 @@ namespace HelpDesk_API.Controllers
                 AiSuggestResult.Success => Ok(suggestion),
                 AiSuggestResult.NotConfigured => StatusCode(503, "AI suggestions are not configured."),
                 AiSuggestResult.UpstreamError => StatusCode(502, "The AI service is unavailable right now."),
+                _ => StatusCode(500)
+            };
+        }
+
+        [HttpPost("chat")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> Chat([FromBody] AiChatRequestDto request)
+        {
+            var (result, response) = await _aiChatService.ContinueAsync(request.Messages);
+
+            return result switch
+            {
+                AiSuggestResult.Success => Ok(response),
+                AiSuggestResult.NotConfigured => StatusCode(503, "The assistant is not configured."),
+                AiSuggestResult.UpstreamError => StatusCode(502, "The assistant is unavailable right now."),
                 _ => StatusCode(500)
             };
         }
