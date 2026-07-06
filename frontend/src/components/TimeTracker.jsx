@@ -24,9 +24,14 @@ function useNow(active) {
   return now
 }
 
+// TicketStatus.InProgress on the backend enum. The timer only makes sense while
+// the ticket is actively being worked, so tracking is gated on this status.
+const IN_PROGRESS_STATUS = 2
+
 function TimeTracker({ ticket, role, userId, onActivity }) {
   const navigate = useNavigate()
   const canTrack = role === 'Agent' && ticket.assignedToUser?.id === userId
+  const inProgress = ticket.statusId === IN_PROGRESS_STATUS
 
   const [data, setData] = useState(null)
   const [skewMs, setSkewMs] = useState(0)
@@ -138,7 +143,13 @@ function TimeTracker({ ticket, role, userId, onActivity }) {
               <button
                 className={running ? 'td-btn' : 'td-btn td-btn-primary'}
                 onClick={toggle}
-                disabled={working}
+                // The timer can only be run while the ticket is In Progress.
+                disabled={working || !inProgress}
+                title={
+                  inProgress
+                    ? undefined
+                    : 'The timer is only available while the ticket is In Progress.'
+                }
               >
                 {working ? '…' : running ? '⏸ Pause' : '▶ Start'}
               </button>
@@ -146,6 +157,12 @@ function TimeTracker({ ticket, role, userId, onActivity }) {
               <span className="td-badge b-gray">Read-only</span>
             )}
           </div>
+
+          {canTrack && !inProgress && (
+            <div className="tt-muted tt-hint">
+              Move the ticket to In Progress to track time.
+            </div>
+          )}
         </div>
 
         {error && <div className="td-banner td-banner-sm">⚠ {error}</div>}
