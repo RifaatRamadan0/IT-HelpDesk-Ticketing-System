@@ -54,14 +54,9 @@ function Login() {
             autoComplete="email"
           />
 
-          <div className="login-password-row">
-            <label className="login-label" htmlFor="password">
-              Password
-            </label>
-            <a className="login-forgot" href="#">
-              Forgot password?
-            </a>
-          </div>
+          <label className="login-label" htmlFor="password">
+            Password
+          </label>
           <input
             id="password"
             type="password"

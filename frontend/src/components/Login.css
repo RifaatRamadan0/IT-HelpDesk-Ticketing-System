@@ -87,22 +87,6 @@
   color: #9aa0ac;
 }
 
-.login-password-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.login-forgot {
-  color: #3b66d1;
-  font-size: 16px;
-  text-decoration: none;
-}
-
-.login-forgot:hover {
-  text-decoration: underline;
-}
-
 .login-error {
   margin: -12px 0 20px;
   color: #d23b3b;
