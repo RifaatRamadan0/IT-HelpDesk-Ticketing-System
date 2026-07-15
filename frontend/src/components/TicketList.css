@@ -366,16 +366,38 @@
 
 /* kanban board */
 .tl-board {
-  display: flex;
+  /* Grid instead of flex so the column COUNT reflows to the viewport.
+     minmax(0, 1fr) is the grid equivalent of min-width:0 — it lets each
+     column shrink below its content width instead of overflowing. */
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
-  overflow-x: auto;
   padding-bottom: 8px;
-  align-items: flex-start;
+  align-items: start;
+}
+
+/* Drop to fewer, wider columns as width shrinks so cards stay readable
+   instead of squeezing five thin columns (or forcing horizontal scroll). */
+@media (max-width: 1180px) {
+  .tl-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .tl-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 500px) {
+  .tl-board {
+    grid-template-columns: 1fr;
+  }
 }
 
 .tl-col {
-  flex: 1 1 0;
-  min-width: 248px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface-2);
