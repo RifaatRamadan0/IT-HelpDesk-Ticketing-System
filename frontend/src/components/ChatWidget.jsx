@@ -11,6 +11,9 @@ const GREETING =
 function ChatWidget() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [maximized, setMaximized] = useState(false)
+  const [panelHeight, setPanelHeight] = useState(null)
+  const [resizing, setResizing] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -81,6 +84,32 @@ function ChatWidget() {
     setDraft(null)
   }
 
+  // Drag the top edge to resize height. The panel is anchored to the bottom, so
+  // dragging UP (smaller clientY) should grow it — hence startY - clientY.
+  function startResize(e) {
+    e.preventDefault()
+    const startY = e.clientY
+    const startHeight = e.currentTarget.parentElement.getBoundingClientRect().height
+    const minH = 360
+    // The panel is pinned this many px from the viewport bottom in each mode
+    // (see .cw-panel / .cw-panel--max); leave a small top margin above that.
+    const bottomAnchor = maximized ? 24 : 92
+    const maxH = window.innerHeight - bottomAnchor - 16
+    setResizing(true)
+
+    function onMove(ev) {
+      const next = Math.min(Math.max(startHeight + (startY - ev.clientY), minH), maxH)
+      setPanelHeight(next)
+    }
+    function onUp() {
+      setResizing(false)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   function resetConversation() {
     setMessages([])
     setInput('')
@@ -96,15 +125,48 @@ function ChatWidget() {
   return (
     <>
       {open && (
-        <div className="cw-panel" role="dialog" aria-label="Ticket assistant">
+        <div
+          className={'cw-panel' + (maximized ? ' cw-panel--max' : '')}
+          role="dialog"
+          aria-label="Ticket assistant"
+          style={{
+            // A user-dragged height overrides the default for whichever mode
+            // we're in; maxHeight:none lets it grow past the CSS cap.
+            ...(panelHeight ? { height: panelHeight + 'px', maxHeight: 'none' } : {}),
+            // Suppress the grow/shrink transition during a live drag so the
+            // panel tracks the cursor instead of lagging behind it.
+            ...(resizing ? { transition: 'none' } : {}),
+          }}
+        >
+          <div
+            className="cw-resize-handle"
+            onPointerDown={startResize}
+            role="separator"
+            aria-label="Resize chat height"
+          />
           <header className="cw-header">
             <div className="cw-header-title">
               <span className="cw-dot" />
               Ticket Assistant
             </div>
-            <button className="cw-icon-btn" onClick={handleClose} aria-label="Close">
-              ✕
-            </button>
+            <div className="cw-header-actions">
+              <button
+                className="cw-icon-btn"
+                onClick={() => {
+                  // Reset to the target mode's default height; the user can
+                  // then drag to fine-tune from there.
+                  setPanelHeight(null)
+                  setMaximized((v) => !v)
+                }}
+                aria-label={maximized ? 'Restore size' : 'Maximize'}
+                title={maximized ? 'Restore size' : 'Maximize'}
+              >
+                {maximized ? '🗗' : '🗖'}
+              </button>
+              <button className="cw-icon-btn" onClick={handleClose} aria-label="Close">
+                ✕
+              </button>
+            </div>
           </header>
 
           <div className="cw-body" ref={scrollRef}>
@@ -177,7 +239,11 @@ function ChatWidget() {
       )}
 
       <button
-        className={'cw-launcher' + (open ? ' open' : '')}
+        className={
+          'cw-launcher' +
+          (open ? ' open' : '') +
+          (open && maximized ? ' cw-launcher--hidden' : '')
+        }
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? 'Close assistant' : 'Open ticket assistant'}
       >

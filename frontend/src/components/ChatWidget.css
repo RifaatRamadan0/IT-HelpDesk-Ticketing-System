@@ -24,6 +24,12 @@
 .cw-launcher.open {
   background: var(--sidebar, #0f172a);
 }
+/* Maximized panel reaches the bottom-right corner where this floating button
+   lives, colliding with the composer's send button. The header already has
+   restore + close, so the launcher is redundant here — hide it. */
+.cw-launcher--hidden {
+  display: none;
+}
 
 .cw-panel {
   position: fixed;
@@ -42,6 +48,47 @@
   overflow: hidden;
   z-index: 1000;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Animate the grow/shrink so maximize/restore feels smooth. */
+  transition: width 0.18s ease, height 0.18s ease;
+}
+
+/* Maximized: fill most of the viewport, still anchored bottom-right with a
+   margin. min() keeps it within the screen on smaller displays. */
+.cw-panel--max {
+  width: min(880px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  /* Override the base max-height so maximize actually reaches full height. */
+  max-height: calc(100vh - 48px);
+  bottom: 24px;
+}
+
+/* Thin grabber along the top edge for drag-to-resize the panel height.
+   Sits above the header; ns-resize cursor signals vertical resizing. */
+.cw-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 5;
+  touch-action: none; /* let pointer events drive resize instead of scrolling */
+}
+/* Faint grip line, brightened on hover, so the handle is discoverable. */
+.cw-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.15s ease;
+}
+.cw-resize-handle:hover::after {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .cw-header {
@@ -65,6 +112,11 @@
   border-radius: 50%;
   background: #34d399;
   box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
+}
+.cw-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .cw-icon-btn {
   background: transparent;
