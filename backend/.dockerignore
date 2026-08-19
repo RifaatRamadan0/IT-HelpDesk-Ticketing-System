@@ -1,0 +1,34 @@
+# Build output
+**/bin/
+**/obj/
+
+# Local secrets and user settings
+appsettings.Development.json
+**/*.user
+secrets.json
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Editor folders
+.vs/
+.vscode/
+.idea/
+
+# Docker files (not needed inside the image)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Docs and OS noise
+README.md
+*.md
+.DS_Store
+Thumbs.db
+
+# Logs and local uploads
+**/logs/
+*.log
+**/Uploads/
