@@ -1,10 +1,11 @@
 // Thin wrapper around the login endpoint. Keeping fetch logic out of the
 // component means the UI only deals with "data or error", not HTTP details.
 
-// The ASP.NET Core API's HTTP address (see Properties/launchSettings.json).
-// Run the API with the "http" launch profile so there is no HTTPS port and
-// UseHttpsRedirection does not redirect this call. CORS is set in Program.cs.
-const API_BASE = 'http://localhost:5175/api/Auth'
+// The API's address comes from api/config.js so it can differ per environment.
+// CORS is set in Program.cs and must allow this app's origin.
+import { API_ROOT } from './config'
+
+const API_BASE = `${API_ROOT}/Auth`
 
 export async function login(email, password) {
   const response = await fetch(`${API_BASE}/login`, {

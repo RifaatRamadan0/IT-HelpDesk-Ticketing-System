@@ -5,8 +5,8 @@
 
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
+import { API_ROOT } from './config'
 
-const API_ROOT = 'http://localhost:5175/api'
 const NOTIFICATION_URL = `${API_ROOT}/Notification`
 
 function authHeader() {

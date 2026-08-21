@@ -5,11 +5,11 @@ import { HubConnectionBuilder } from '@microsoft/signalr'
 import { getRole, getToken, getUserName, logout } from '../lib/auth'
 import { NAV, ROLE_LABELS, titleFor } from '../lib/nav'
 import { fetchUnreadCount } from '../api/notifications'
+// Hub address comes from api/config.js so it follows the API across environments.
+import { HUB_URL } from '../api/config'
 import { SessionExpiredError } from '../api/tickets'
 import ChatWidget from './ChatWidget'
 import './AppShell.css'
-
-const HUB_URL = 'http://localhost:5175/hubs/notifications'
 
 function initials(name) {
   return (name || '?')

@@ -1,7 +1,7 @@
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
+import { API_ROOT } from './config'
 
-const API_ROOT = 'http://localhost:5175/api'
 const CHAT_URL = `${API_ROOT}/Ticket/chat`
 
 function authHeader() {

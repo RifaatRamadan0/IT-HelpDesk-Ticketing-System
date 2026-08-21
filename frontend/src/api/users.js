@@ -2,8 +2,8 @@
 // tickets module so components can handle "logged out" uniformly.
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
+import { API_ROOT } from './config'
 
-const API_ROOT = 'http://localhost:5175/api'
 const USER_URL = `${API_ROOT}/User`
 const ROLE_URL = `${API_ROOT}/Role`
 

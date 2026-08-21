@@ -3,8 +3,8 @@
 // deals with "data or error".
 
 import { clearTokens } from '../lib/auth'
+import { API_ROOT } from './config'
 
-const API_ROOT = 'http://localhost:5175/api'
 const TICKET_URL = `${API_ROOT}/Ticket`
 const CATEGORY_URL = `${API_ROOT}/Category`
 const PRIORITY_URL = `${API_ROOT}/Priority`
