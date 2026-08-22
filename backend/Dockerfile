@@ -7,5 +7,6 @@ RUN dotnet publish HelpDesk.API/HelpDesk.API.csproj -c Release -o /app/publish /
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "dotnet HelpDesk.API.dll --urls http://+:${PORT:-8080}"]
