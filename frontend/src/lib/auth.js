@@ -33,9 +33,10 @@ export function isLoggedIn() {
   return payload.exp * 1000 > Date.now()
 }
 
-// Local-only: drop the tokens from this browser. Used on the auto-logout path
+// Local-only: drop the token from this browser. Used on the auto-logout path
 // (a 401), where the token is already dead so there's nothing to revoke server-
-// side.
+// side. removeItem on 'refreshToken' stays to clear it for anyone still holding
+// one from a build that stored it.
 export function clearTokens() {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')

@@ -18,9 +18,11 @@ function Login() {
     setLoading(true)
 
     try {
-      const { accessToken, refreshToken } = await login(email, password)
+      // The API also returns a refreshToken, but nothing in this client calls
+      // /Auth/refresh, so storing it would keep a 7-day credential in
+      // localStorage that buys us nothing. Store it only once refresh is wired up.
+      const { accessToken } = await login(email, password)
       localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
       // Go to the dashboard; replace so Back doesn't return to login.
       navigate('/dashboard', { replace: true })
     } catch (err) {
