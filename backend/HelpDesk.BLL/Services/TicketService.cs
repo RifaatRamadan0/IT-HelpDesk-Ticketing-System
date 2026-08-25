@@ -80,18 +80,18 @@ namespace HelpDesk.BLL.Services
             return (CreateTicketResult.Created, ticketId);
         }
 
-        public async Task<bool> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId)
+        public async Task<UpdateTicketResult> UpdateAsync(int ticketId, UpdateTicketRequestDto request, int requestingUserId)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
-                return false;
+                return UpdateTicketResult.TicketNotFound;
 
             if (ticket.CreatedByUserId != requestingUserId)
-                return false;
+                return UpdateTicketResult.NotOwner;
 
             bool isOpen = ticket.StatusId == (int)TicketStatus.Open;
             if (!isOpen)
-                return false;
+                return UpdateTicketResult.NotOpen;
 
             ticket.Title = request.Title;
             ticket.Description = request.Description;
@@ -99,8 +99,9 @@ namespace HelpDesk.BLL.Services
             ticket.PriorityId = request.PriorityId;
             ticket.UpdatedDate = DateTime.UtcNow;
 
-            return await _ticketRepository.UpdateAsync(ticket);
-
+            return await _ticketRepository.UpdateAsync(ticket)
+                ? UpdateTicketResult.Updated
+                : UpdateTicketResult.TicketNotFound;
         }
 
         public async Task<UpdateStatusResult> UpdateStatusAsync(int ticketId, int statusId, int requestingUserId, string? requestingUserRole)
@@ -262,20 +263,22 @@ namespace HelpDesk.BLL.Services
             return EscalateTicketResult.Escalated;
         }
 
-        public async Task<bool> DeleteAsync(int ticketId, int requestingUserId)
+        public async Task<DeleteTicketResult> DeleteAsync(int ticketId, int requestingUserId)
         {
             var ticket = await _ticketRepository.GetByIdAsync(ticketId);
             if (ticket == null)
-                return false;
+                return DeleteTicketResult.TicketNotFound;
 
             if (ticket.CreatedByUserId != requestingUserId)
-                return false;
+                return DeleteTicketResult.NotOwner;
 
             bool isOpen = ticket.StatusId == (int)TicketStatus.Open;
             if (!isOpen)
-                return false;
+                return DeleteTicketResult.NotOpen;
 
-            return await _ticketRepository.DeleteAsync(ticketId);
+            return await _ticketRepository.DeleteAsync(ticketId)
+                ? DeleteTicketResult.Deleted
+                : DeleteTicketResult.TicketNotFound;
         }
 
         public async Task<ICollection<TicketResponseDto>> GetAllAsync()

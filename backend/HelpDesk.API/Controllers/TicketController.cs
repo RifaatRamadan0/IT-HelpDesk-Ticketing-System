@@ -170,10 +170,15 @@ namespace HelpDesk_API.Controllers
         public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var isUpdated = await _ticketService.UpdateAsync(id, request, userId);
-            if (!isUpdated)
-                return BadRequest("Failed to update ticket.");
-            return NoContent();
+            var result = await _ticketService.UpdateAsync(id, request, userId);
+            return result switch
+            {
+                UpdateTicketResult.Updated => NoContent(),
+                UpdateTicketResult.TicketNotFound => NotFound(),
+                UpdateTicketResult.NotOwner => NotFound(),
+                UpdateTicketResult.NotOpen => Conflict("A ticket can only be edited while it is still Open."),
+                _ => StatusCode(500)
+            };
         }
 
         [HttpPut("{id}/status")]
@@ -380,10 +385,15 @@ namespace HelpDesk_API.Controllers
         public async Task<IActionResult> DeleteTicket(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var isDeleted = await _ticketService.DeleteAsync(id, userId);
-            if (!isDeleted)
-                return BadRequest("Failed to delete ticket.");
-            return NoContent();
+            var result = await _ticketService.DeleteAsync(id, userId);
+            return result switch
+            {
+                DeleteTicketResult.Deleted => NoContent(),
+                DeleteTicketResult.TicketNotFound => NotFound(),
+                DeleteTicketResult.NotOwner => NotFound(),
+                DeleteTicketResult.NotOpen => Conflict("A ticket can only be deleted while it is still Open."),
+                _ => StatusCode(500)
+            };
         }
     }
 }
