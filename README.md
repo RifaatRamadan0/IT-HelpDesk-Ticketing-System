@@ -8,10 +8,10 @@ ASP.NET Core 8 Web API with a React frontend, SQL Server behind Entity Framework
 
 | | |
 |---|---|
-| App | `<VERCEL_URL>` |
-| API | `<RENDER_URL>` |
+| App | [helpdesk-fawn-five.vercel.app](https://helpdesk-fawn-five.vercel.app) |
+| API | [it-helpdesk-ticketing-system-t437.onrender.com](https://it-helpdesk-ticketing-system-t437.onrender.com) |
 
-The API runs on a free Render instance, so it sleeps after 15 minutes of no traffic. The first request can take about a minute to wake it up. Give it a moment before assuming it is broken.
+The API runs on a free Render instance, so it sleeps after 15 minutes of no traffic. A cold first request measured about 90 seconds — Render waking the container, then Azure SQL resuming behind it. Give it two minutes before assuming it is broken.
 
 ## Roles
 
@@ -221,7 +221,7 @@ Nothing secret is committed. `appsettings.json` holds only non-sensitive default
 
 The Dockerfile is multi-stage: SDK image to publish, runtime image to run. The final image binds to `$PORT` so Render can assign one.
 
-The Azure database is serverless and pauses when idle, so the first query after a quiet period also has a delay. Combined with Render's sleep, a cold visit costs you a minute or so.
+The Azure database is serverless and pauses when idle, so the first query after a quiet period also has a delay. Combined with Render's sleep, a cold visit costs about 90 seconds; warm requests are immediate.
 
 ## Known limitations
 
