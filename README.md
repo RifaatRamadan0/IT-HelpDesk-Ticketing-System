@@ -2,7 +2,7 @@
 
 A help desk system where employees raise IT tickets, agents work them, and managers track the queue. Built solo during the IDS Academy Full Stack Web Development internship, Summer 2026.
 
-ASP.NET Core 8 Web API with a React frontend, SQL Server behind Entity Framework Core, JWT auth, SignalR for live notifications, and OpenAI for ticket triage.
+ASP.NET Core 8 Web API with a React frontend, SQL Server behind Entity Framework Core, JWT auth, SignalR for live notifications, and OpenAI behind two features for employees: category and priority suggestions, and a chat assistant that creates tickets.
 
 ## Live demo
 
@@ -13,6 +13,20 @@ ASP.NET Core 8 Web API with a React frontend, SQL Server behind Entity Framework
 
 The API runs on a free Render instance, so it sleeps after 15 minutes of no traffic. A cold first request measured about 90 seconds — Render waking the container, then Azure SQL resuming behind it. Give it two minutes before assuming it is broken.
 
+## Screens
+
+The chat assistant. The employee describes the problem, the assistant asks what it still needs, and the draft at the bottom is what gets submitted once they confirm.
+
+![Chat assistant building a ticket from a conversation](docs/screenshots/ai-chatbot.png)
+
+Manager dashboard: counts by status, tickets by category and priority, agent workload, and the recent activity feed.
+
+![Manager dashboard with charts and recent activity](docs/screenshots/manager-dashboard.png)
+
+Ticket detail for a manager, with the conversation, an internal note in amber, the agent's timer, and the reassignment panel.
+
+![Ticket detail showing conversation, timer and assignment](docs/screenshots/ticket-detail.png)
+
 ## Roles
 
 Four roles, each with a different view of the same data.
@@ -20,9 +34,9 @@ Four roles, each with a different view of the same data.
 | Role | Can do |
 |---|---|
 | Employee | Create tickets, edit or delete their own while still Open, comment, attach files, use the AI assistant |
-| Agent | Work assigned tickets, run the ticket timer, escalate, comment |
-| Manager | Assign tickets to agents, view all tickets, export PDF reports |
-| Admin | Everything a manager can do, plus create, edit and delete users |
+| Agent | Work assigned tickets, run the ticket timer, escalate, comment, leave internal notes |
+| Manager | Assign tickets to agents, view all tickets as a board or a list, leave internal notes, export PDF reports |
+| Admin | Everything a manager can do apart from writing internal notes, plus create, edit and delete users |
 
 ### Ticket lifecycle
 
@@ -42,13 +56,21 @@ Both checks run in the service layer, one for whether the role owns the transiti
 
 Escalation is separate from status. An assigned agent can escalate a ticket that is In Progress, once. The flag clears automatically when the ticket leaves In Progress, and also when a manager reassigns the ticket to a different agent.
 
+The board is the same five states as columns:
+
+![Ticket board with a column per status](docs/screenshots/ticket-board.png)
+
 ## Features
 
-**Auth.** Login returns an access token (60 minutes) and a refresh token (7 days), but the client stores only the access token. Nothing in the frontend calls `/Auth/refresh`, so keeping a 7-day credential in the browser would add risk without buying anything. A session therefore lasts as long as the access token: when it expires the user signs in again. `POST /api/Auth/refresh` is implemented on the API and works, but only Swagger or a direct call reaches it.
+**Auth.** Login returns an access token valid for 60 minutes, and that is the only credential the browser keeps. When it expires, the user signs in again.
 
 Logout revokes the user's refresh tokens server-side, then clears local storage whether or not that call succeeded, so a failed network request can never leave the user stuck in a signed-in UI. Passwords are hashed with BCrypt.
 
 **Tickets.** Create, assign, escalate, comment, and a per-ticket timer that records time spent by agents.
+
+**Board and list.** Managers and admins land on a board with one column per status and can switch to a flat list. Other roles get the list. Filters for status, priority, category and agent, plus a text search, run in the browser over the rows already loaded, and the status filter drops out on the board because the columns are the statuses. Cards open the ticket instead of dragging between columns, since every status move has to pass the role and ownership checks on the API.
+
+**Internal notes.** Agents and managers can mark a comment internal. Admins read internal notes but always post publicly, since the note is meant for whoever is working the ticket. The repository leaves internal rows out of the query for anyone who is not staff, so the text never reaches an employee's browser. Internal notes are also skipped by the activity log and the notification, because the reporter has nothing to be told about.
 
 **Attachments.** Uploads are validated by extension allowlist, then size cap of 5 MB, then magic bytes. A `.exe` renamed to `.png` fails the byte check. The content type served back is decided by the server, never taken from the client. Allowed: png, jpg, jpeg, gif, pdf, zip, docx, xlsx, txt, log, csv.
 
@@ -56,7 +78,11 @@ Logout revokes the user's refresh tokens server-side, then clears local storage 
 
 **Reports.** Managers and admins get dashboard charts and a PDF export generated with QuestPDF.
 
-**AI.** Two OpenAI-backed features, both for employees. `ai-suggest` reads the ticket text and proposes a category and priority. A chat assistant helps the employee describe the problem before they submit it.
+**AI.** Two OpenAI features, both for employees. `ai-suggest` reads the title and description already typed into the form and picks a category and priority, which the employee can apply or ignore.
+
+The chat assistant covers the whole form. The employee describes the problem, the assistant asks about anything it cannot work out on its own, and once it has a title, description, category and priority it hands back a draft to confirm. Nothing is written until the employee clicks Create ticket, and the ticket is then created through the normal `POST /api/Ticket` endpoint like any other.
+
+Both prompts list the categories and priorities read from the database, and the model's answer is checked against those lists afterwards, so neither feature can invent a category that does not exist. Without an `OpenAI:ApiKey` both endpoints return 503 and the rest of the app works normally.
 
 ## Stack
 
@@ -150,6 +176,9 @@ SignalR hub: `/hubs/notifications`, token passed as `?access_token=`.
 
 ## Running it locally
 
+<details>
+<summary>Setup steps for backend, frontend and Docker</summary>
+
 You need .NET 8 SDK, Node 20 or newer, and SQL Server (LocalDB or a container is fine).
 
 **Backend**
@@ -193,7 +222,12 @@ OpenAI__ApiKey=...
 Cors__AllowedOrigins__0=https://your-frontend.vercel.app
 ```
 
+</details>
+
 ## Configuration
+
+<details>
+<summary>Config keys</summary>
 
 | Key | What it is |
 |---|---|
@@ -211,6 +245,8 @@ Refresh token lifetime is fixed at 7 days in code and is not configurable.
 
 Nothing secret is committed. `appsettings.json` holds only non-sensitive defaults. Use user secrets locally and environment variables in hosting.
 
+</details>
+
 ## Deployment
 
 | Piece | Where |
@@ -223,19 +259,13 @@ The Dockerfile is multi-stage: SDK image to publish, runtime image to run. The f
 
 The Azure database is serverless and pauses when idle, so the first query after a quiet period also has a delay. Combined with Render's sleep, a cold visit costs about 90 seconds; warm requests are immediate.
 
-## Known limitations
+## Limitations and next steps
 
-Worth stating plainly rather than discovering later.
-
-- **No automated tests.** Everything was verified by hand through Swagger and the UI.
-- **Sessions end after 60 minutes.** With no refresh call in the client, the access token's lifetime *is* the session length, so it cannot be shortened without making users sign in more often. Wiring a refresh call into the API layer is the fix; the endpoint's rotation would then also need per-token revocation and reuse detection, which it does not have today.
-- **Attachments do not survive a redeploy.** Files are written to the container filesystem at `Uploads/Attachments`, and Render's free tier gives you an ephemeral disk. Moving to blob storage is the fix.
-- **Free tier cold starts.** Covered above. Fine for a demo, not for real users.
-- **No email notifications.** Notifications are in-app only.
-
-## What I would change
-
-If I picked this up again, first job is a test suite around the ticket state machine and the auth flow, since those two carry the most logic. Second is actually calling the refresh endpoint the API already exposes, so a session does not die after an hour, and adding reuse detection to it once it is on a real code path. Third is moving attachments off local disk. Fourth is pagination on the ticket list, which currently returns everything and will not stay fast.
+- No automated tests. Everything was verified by hand through Swagger and the UI. A suite around the ticket state machine and the auth rules is the first thing I would add, since those two carry the most logic.
+- Sessions last 60 minutes. The client never calls the refresh endpoint the API already exposes, so the access token's lifetime is the session length. Wiring that call into the API layer is the fix, and the endpoint's rotation would then also need per-token revocation and reuse detection.
+- Attachments are stored on the container filesystem at `Uploads/Attachments`, which Render's free tier wipes on redeploy. `IFileStorageService` already isolates this, so moving to blob storage is a one class swap.
+- The ticket list returns every row. It needs pagination before the table gets large.
+- Notifications are in-app only. There is no email.
 
 ## License
 
