@@ -9,8 +9,8 @@ namespace HelpDesk.BLL.Interfaces
 {
     public interface IAuthService
     {
-        Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
-        Task<LoginResponseDto?> RefreshAsync(RefreshTokenRequestDto request);
-        Task LogoutAsync(int userId);
+        Task<(string AccessToken, string RefreshToken)?> LoginAsync(LoginRequestDto request);
+        Task<(string AccessToken, string RefreshToken)?> RefreshAsync(string refreshToken);
+        Task LogoutAsync(string refreshToken);
     }
 }

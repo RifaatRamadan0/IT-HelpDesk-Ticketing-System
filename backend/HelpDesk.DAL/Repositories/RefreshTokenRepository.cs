@@ -25,12 +25,26 @@ namespace HelpDesk.DAL.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<RefreshToken?> GetByTokenAsync(string token)
+        public async Task<RefreshToken?> GetByHashAsync(string tokenHash)
         {
             return await _context.RefreshTokens
                 .Include(t => t.User)
                 .ThenInclude(u => u.Role)
-                .SingleOrDefaultAsync(t => t.Token == token);
+                .SingleOrDefaultAsync(t => t.TokenHash == tokenHash);
+        }
+
+        public async Task RevokeAsync(int id)
+        {
+            await _context.RefreshTokens
+                .Where(t => t.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRevoked, true));
+        }
+
+        public async Task RevokeByHashAsync(string tokenHash)
+        {
+            await _context.RefreshTokens
+                .Where(t => t.TokenHash == tokenHash)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRevoked, true));
         }
 
         public async Task RevokeAllByUserIdAsync(int userId)

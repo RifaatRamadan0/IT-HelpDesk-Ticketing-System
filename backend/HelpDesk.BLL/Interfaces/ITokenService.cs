@@ -11,5 +11,6 @@ namespace HelpDesk.BLL.Interfaces
     {
         string GenerateAccessToken(User user);
         string GenerateRefreshToken();
+        string HashRefreshToken(string refreshToken);
     }
 }

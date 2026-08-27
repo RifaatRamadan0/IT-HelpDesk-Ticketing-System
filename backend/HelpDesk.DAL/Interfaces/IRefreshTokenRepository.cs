@@ -10,7 +10,9 @@ namespace HelpDesk.DAL.Interfaces
     public interface IRefreshTokenRepository
     {
         Task AddAsync(RefreshToken token);
-        Task<RefreshToken?> GetByTokenAsync(string token);
+        Task<RefreshToken?> GetByHashAsync(string tokenHash);
+        Task RevokeAsync(int id);
+        Task RevokeByHashAsync(string tokenHash);
         Task RevokeAllByUserIdAsync(int userId);
     }
 }

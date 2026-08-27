@@ -45,6 +45,15 @@ namespace HelpDesk.DAL.Data
                 new Role { Id = 4, RoleName = "Manager" }
             );
 
+            modelBuilder.Entity<RefreshToken>()
+                .Property(t => t.TokenHash)
+                .HasMaxLength(64)
+                .IsFixedLength();
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(t => t.TokenHash)
+                .IsUnique();
+
             modelBuilder.Entity<Ticket>()
                 .HasOne(t => t.CreatedByUser)
                 .WithMany()

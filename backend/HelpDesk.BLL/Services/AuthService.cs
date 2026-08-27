@@ -26,7 +26,9 @@ namespace HelpDesk.BLL.Services
             _tokenService = tokenService;
         }
 
-        public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto request)
+        public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(7);
+
+        public async Task<(string AccessToken, string RefreshToken)?> LoginAsync(LoginRequestDto request)
         {
             var user = await _userRepository.GetByEmailAsync(request.Email);
 
@@ -34,53 +36,61 @@ namespace HelpDesk.BLL.Services
                 return null;
 
             var accessToken = _tokenService.GenerateAccessToken(user);
+            var refreshToken = await IssueRefreshTokenAsync(user.Id);
+
+            return (accessToken, refreshToken);
+        }
+
+        public async Task<(string AccessToken, string RefreshToken)?> RefreshAsync(string refreshToken)
+        {
+            if (string.IsNullOrEmpty(refreshToken))
+                return null;
+
+            var hash = _tokenService.HashRefreshToken(refreshToken);
+            var stored = await _refreshTokenRepository.GetByHashAsync(hash);
+
+            if (stored == null)
+                return null;
+
+            if (stored.IsRevoked)
+            {
+                await _refreshTokenRepository.RevokeAllByUserIdAsync(stored.UserId);
+                return null;
+            }
+
+            if (stored.ExpiresDate < DateTime.UtcNow)
+                return null;
+
+            await _refreshTokenRepository.RevokeAsync(stored.Id);
+
+            var accessToken = _tokenService.GenerateAccessToken(stored.User);
+            var newRefreshToken = await IssueRefreshTokenAsync(stored.UserId);
+
+            return (accessToken, newRefreshToken);
+        }
+
+        public async Task LogoutAsync(string refreshToken)
+        {
+            if (string.IsNullOrEmpty(refreshToken))
+                return;
+
+            var hash = _tokenService.HashRefreshToken(refreshToken);
+            await _refreshTokenRepository.RevokeByHashAsync(hash);
+        }
+
+        private async Task<string> IssueRefreshTokenAsync(int userId)
+        {
             var refreshToken = _tokenService.GenerateRefreshToken();
 
             await _refreshTokenRepository.AddAsync(new RefreshToken
             {
-                UserId = user.Id,
-                Token = refreshToken,
+                UserId = userId,
+                TokenHash = _tokenService.HashRefreshToken(refreshToken),
                 CreatedDate = DateTime.UtcNow,
-                ExpiresDate = DateTime.UtcNow.AddDays(7)
+                ExpiresDate = DateTime.UtcNow.Add(RefreshTokenLifetime)
             });
 
-            return new LoginResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken
-            };
-        }
-
-        public async Task<LoginResponseDto?> RefreshAsync(RefreshTokenRequestDto request)
-        {
-            var refreshToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
-
-            if (refreshToken == null || refreshToken.IsRevoked || refreshToken.ExpiresDate < DateTime.UtcNow)
-                return null;
-
-            await _refreshTokenRepository.RevokeAllByUserIdAsync(refreshToken.UserId);
-
-            var newRefreshToken = _tokenService.GenerateRefreshToken();
-            var accessToken = _tokenService.GenerateAccessToken(refreshToken.User);
-
-            await _refreshTokenRepository.AddAsync(new RefreshToken
-            {
-                UserId = refreshToken.UserId,
-                Token = newRefreshToken,
-                CreatedDate = DateTime.UtcNow,
-                ExpiresDate = DateTime.UtcNow.AddDays(7)
-            });
-
-            return new LoginResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = newRefreshToken
-            };
-        }
-
-        public async Task LogoutAsync(int userId)
-        {
-            await _refreshTokenRepository.RevokeAllByUserIdAsync(userId);
+            return refreshToken;
         }
     }
 }

@@ -11,7 +11,7 @@ namespace HelpDesk.Domain.Models
         public int Id { get; set; }
         public int UserId { get; set; }
         public User User { get; set; } = null!;
-        public string Token { get; set; } = string.Empty;
+        public string TokenHash { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime ExpiresDate { get; set; }
         public bool IsRevoked { get; set; } = false;
