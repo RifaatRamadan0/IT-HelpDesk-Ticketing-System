@@ -4,6 +4,7 @@
 
 import { clearTokens } from '../lib/auth'
 import { API_ROOT } from './config'
+import { authFetch } from '../lib/authFetch'
 
 const TICKET_URL = `${API_ROOT}/Ticket`
 const CATEGORY_URL = `${API_ROOT}/Category`
@@ -19,18 +20,10 @@ export class SessionExpiredError extends Error {
   }
 }
 
-function authHeader() {
-  const token = localStorage.getItem('accessToken')
-  if (!token) {
-    throw new Error('You must be signed in to continue.')
-  }
-  return { Authorization: `Bearer ${token}` }
-}
-
 // Shared GET for the two lookup tables. Both endpoints return [{ id, name }],
 // fetched at runtime so the UI never assumes seeded ids.
 async function getLookup(url, label) {
-  const response = await fetch(url, { headers: authHeader() })
+  const response = await authFetch(url)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -69,7 +62,7 @@ function ticketsUrlForRole(role) {
 // Fetch a single ticket by id. Returns null on 404 so the UI can show a
 // "not found" state instead of a generic error.
 export async function fetchTicketById(id) {
-  const response = await fetch(`${TICKET_URL}/${id}`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/${id}`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -89,7 +82,7 @@ export async function fetchTickets(role) {
     throw new Error('Your account role cannot view tickets.')
   }
 
-  const response = await fetch(url, { headers: authHeader() })
+  const response = await authFetch(url)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -105,7 +98,7 @@ export async function fetchTickets(role) {
 // pending, resolved, critical, avgResolutionHours, byCategory: { name: count },
 // byPriority: { name: count } }.
 export async function fetchTicketStats() {
-  const response = await fetch(`${TICKET_URL}/statistics`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/statistics`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -118,7 +111,7 @@ export async function fetchTicketStats() {
 
 export async function fetchReport(from, to) {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
-  const response = await fetch(`${TICKET_URL}/report?${params}`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/report?${params}`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -131,7 +124,7 @@ export async function fetchReport(from, to) {
 
 export async function exportReportPdf(from, to) {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
-  const response = await fetch(`${TICKET_URL}/report/export?${params}`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/report/export?${params}`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -152,13 +145,10 @@ export async function exportReportPdf(from, to) {
 }
 
 export async function createTicket({ title, description, categoryId, priorityId }) {
-  const response = await fetch(TICKET_URL, {
+  // The endpoint is [Authorize(Roles = "Employee")]; the JWT carries the role.
+  const response = await authFetch(TICKET_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      // The endpoint is [Authorize(Roles = "Employee")]; the JWT carries the role.
-      ...authHeader(),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, description, categoryId, priorityId }),
   })
 
@@ -182,11 +172,10 @@ export async function createTicket({ title, description, categoryId, priorityId 
 }
 
 export async function suggestClassification({ title, description }) {
-  const response = await fetch(`${TICKET_URL}/ai-suggest`, {
+  const response = await authFetch(`${TICKET_URL}/ai-suggest`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ title, description }),
   })
@@ -209,11 +198,10 @@ export async function suggestClassification({ title, description }) {
 // them); an illegal transition comes back as 400, surfaced here as a friendly
 // message. statusId is the TicketStatus enum value (Open=1 … Closed=5).
 export async function updateTicketStatus(id, statusId) {
-  const response = await fetch(`${TICKET_URL}/${id}/status`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/status`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ statusId }),
   })
@@ -235,7 +223,7 @@ export async function updateTicketStatus(id, statusId) {
 // authorizes GET /User/agents for those roles); returns
 // [{ id, firstName, lastName }].
 export async function fetchAgents() {
-  const response = await fetch(`${USER_URL}/agents`, { headers: authHeader() })
+  const response = await authFetch(`${USER_URL}/agents`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -250,11 +238,10 @@ export async function fetchAgents() {
 // each distinct failure to its own status (see AssignTicketResult), so we can
 // give the user a precise reason rather than one generic error.
 export async function assignTicket(id, agentUserId) {
-  const response = await fetch(`${TICKET_URL}/${id}/assign`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/assign`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ agentUserId }),
   })
@@ -282,7 +269,7 @@ export async function assignTicket(id, agentUserId) {
 // server (Manager: any; Agent: assigned; Employee: own); a ticket the caller
 // can't see comes back as 404. Returns [{ id, body, createdDate, createdByUser }].
 export async function fetchComments(id) {
-  const response = await fetch(`${TICKET_URL}/${id}/comments`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/${id}/comments`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -298,11 +285,10 @@ export async function fetchComments(id) {
 // staff-only note hidden from the employee — the server is the source of truth
 // and will ignore/clear the flag for roles that aren't allowed to set it.
 export async function postComment(id, body, isInternal = false) {
-  const response = await fetch(`${TICKET_URL}/${id}/comments`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ body, isInternal }),
   })
@@ -324,11 +310,10 @@ export async function postComment(id, body, isInternal = false) {
 // for a ticket assigned to the caller; the reason is required and stored as a
 // staff-only internal note. The API returns 204 with no body.
 export async function escalateTicket(id, reason) {
-  const response = await fetch(`${TICKET_URL}/${id}/escalate`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/escalate`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ reason }),
   })
@@ -351,7 +336,7 @@ export async function escalateTicket(id, reason) {
 }
 
 export async function fetchTimeTracking(id) {
-  const response = await fetch(`${TICKET_URL}/${id}/time`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/${id}/time`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -366,11 +351,10 @@ export async function fetchTimeTracking(id) {
 }
 
 export async function setTimer(id, running) {
-  const response = await fetch(`${TICKET_URL}/${id}/timer`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/timer`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ running }),
   })
@@ -392,7 +376,7 @@ export async function setTimer(id, running) {
 // it. Returns [{ id, actionType, actionText, oldStatusName, newStatusName,
 // createdDate, user }].
 export async function fetchActivity(id) {
-  const response = await fetch(`${TICKET_URL}/${id}/activity`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/${id}/activity`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -407,7 +391,7 @@ export async function fetchActivity(id) {
 // on the server, so any user who can open the ticket can list them. Returns
 // [{ id, fileName, contentType, fileSize, uploadedDate, uploadedByUser }].
 export async function fetchAttachments(id) {
-  const response = await fetch(`${TICKET_URL}/${id}/attachments`, { headers: authHeader() })
+  const response = await authFetch(`${TICKET_URL}/${id}/attachments`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -421,11 +405,10 @@ export async function fetchAttachments(id) {
 // Upload a file as a Base64 data URL. The server validates size, extension, and
 // magic bytes, returning 400 with a specific reason on failure.
 export async function uploadAttachment(id, fileName, content) {
-  const response = await fetch(`${TICKET_URL}/${id}/attachments`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/attachments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ fileName, content }),
   })
@@ -448,10 +431,7 @@ export async function uploadAttachment(id, fileName, content) {
 // plain <a href> — fetch the bytes as a blob and trigger a save client-side. The
 // server already forces Content-Disposition: attachment; we also pass the name.
 export async function downloadAttachment(id, attachmentId, fileName) {
-  const response = await fetch(
-    `${TICKET_URL}/${id}/attachments/${attachmentId}/download`,
-    { headers: authHeader() },
-  )
+  const response = await authFetch(`${TICKET_URL}/${id}/attachments/${attachmentId}/download`)
   if (response.status === 401) {
     clearTokens()
     throw new SessionExpiredError()
@@ -474,9 +454,8 @@ export async function downloadAttachment(id, attachmentId, fileName) {
 // Delete an attachment. The API allows only the user who uploaded it (403 for
 // anyone else).
 export async function deleteAttachment(id, attachmentId) {
-  const response = await fetch(`${TICKET_URL}/${id}/attachments/${attachmentId}`, {
+  const response = await authFetch(`${TICKET_URL}/${id}/attachments/${attachmentId}`, {
     method: 'DELETE',
-    headers: authHeader(),
   })
   if (response.status === 401) {
     clearTokens()
@@ -494,11 +473,10 @@ export async function deleteAttachment(id, attachmentId) {
 // it, and only while it's still Open (enforced in TicketService); a rejected
 // edit comes back as 400, surfaced here as a friendly message.
 export async function updateTicket(id, { title, description, categoryId, priorityId }) {
-  const response = await fetch(`${TICKET_URL}/${id}`, {
+  const response = await authFetch(`${TICKET_URL}/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ title, description, categoryId, priorityId }),
   })
@@ -520,9 +498,8 @@ export async function updateTicket(id, { title, description, categoryId, priorit
 // only while it's still Open (enforced in TicketService.DeleteAsync); a rejected
 // delete comes back as 400, surfaced here as a friendly message.
 export async function deleteTicket(id) {
-  const response = await fetch(`${TICKET_URL}/${id}`, {
+  const response = await authFetch(`${TICKET_URL}/${id}`, {
     method: 'DELETE',
-    headers: authHeader(),
   })
 
   if (response.status === 401) {

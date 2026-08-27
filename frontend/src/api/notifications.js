@@ -6,16 +6,9 @@
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
 import { API_ROOT } from './config'
+import { authFetch } from '../lib/authFetch'
 
 const NOTIFICATION_URL = `${API_ROOT}/Notification`
-
-function authHeader() {
-  const token = localStorage.getItem('accessToken')
-  if (!token) {
-    throw new Error('You must be signed in to continue.')
-  }
-  return { Authorization: `Bearer ${token}` }
-}
 
 // Shared 401 handling: a rejected token is unrecoverable, so clear it and signal
 // the caller to redirect rather than retrying.
@@ -30,7 +23,7 @@ function handleUnauthorized(response) {
 // the JWT user, so there's nothing to pass. Shape:
 // [{ id, message, ticketId, isRead, createdDate }].
 export async function fetchNotifications() {
-  const response = await fetch(NOTIFICATION_URL, { headers: authHeader() })
+  const response = await authFetch(NOTIFICATION_URL)
   handleUnauthorized(response)
   if (!response.ok) {
     throw new Error('Could not load notifications.')
@@ -40,7 +33,7 @@ export async function fetchNotifications() {
 
 // Just the unread tally for the bell badge — a cheap query meant to be polled.
 export async function fetchUnreadCount() {
-  const response = await fetch(`${NOTIFICATION_URL}/unread-count`, { headers: authHeader() })
+  const response = await authFetch(`${NOTIFICATION_URL}/unread-count`)
   handleUnauthorized(response)
   if (!response.ok) {
     throw new Error('Could not load the unread count.')
@@ -52,9 +45,8 @@ export async function fetchUnreadCount() {
 // caller's (or doesn't exist), which we treat as a no-op rather than an error so a
 // stale click can't surface a scary message.
 export async function markRead(id) {
-  const response = await fetch(`${NOTIFICATION_URL}/${id}/read`, {
+  const response = await authFetch(`${NOTIFICATION_URL}/${id}/read`, {
     method: 'PUT',
-    headers: authHeader(),
   })
   handleUnauthorized(response)
   if (response.status === 404) {
@@ -67,9 +59,8 @@ export async function markRead(id) {
 
 // Mark every unread notification read in one call. Returns 204 with no body.
 export async function markAllRead() {
-  const response = await fetch(`${NOTIFICATION_URL}/read-all`, {
+  const response = await authFetch(`${NOTIFICATION_URL}/read-all`, {
     method: 'PUT',
-    headers: authHeader(),
   })
   handleUnauthorized(response)
   if (!response.ok) {

@@ -1,23 +1,15 @@
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
 import { API_ROOT } from './config'
+import { authFetch } from '../lib/authFetch'
 
 const CHAT_URL = `${API_ROOT}/Ticket/chat`
 
-function authHeader() {
-  const token = localStorage.getItem('accessToken')
-  if (!token) {
-    throw new Error('You must be signed in to continue.')
-  }
-  return { Authorization: `Bearer ${token}` }
-}
-
 export async function sendChat(messages) {
-  const response = await fetch(CHAT_URL, {
+  const response = await authFetch(CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
     },
     body: JSON.stringify({ messages }),
   })

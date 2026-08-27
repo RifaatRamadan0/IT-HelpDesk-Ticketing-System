@@ -11,6 +11,7 @@ export async function login(email, password) {
   const response = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     // Property names must match the C# LoginRequestDto (Email/Password).
     // ASP.NET's JSON binding is case-insensitive, so lowercase keys are fine.
     body: JSON.stringify({ email, password }),
@@ -24,16 +25,16 @@ export async function login(email, password) {
     throw new Error('Something went wrong. Please try again.')
   }
 
-  // Shape: { accessToken, refreshToken }
+  // Shape: { accessToken }
   return response.json()
 }
 
-// Best-effort server-side revocation of the user's refresh tokens. The caller
+// Best-effort server-side revocation of the user's refresh token. The caller
 // clears local storage regardless of the outcome, so failures here (network
 // down, token already expired) are intentionally swallowed by the caller.
-export async function revokeSession(accessToken) {
+export async function revokeSession() {
   await fetch(`${API_BASE}/logout`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: 'include',
   })
 }

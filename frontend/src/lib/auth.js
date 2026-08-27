@@ -42,17 +42,14 @@ export function clearTokens() {
   localStorage.removeItem('refreshToken')
 }
 
-// User-initiated logout: revoke the refresh tokens server-side first (best
+// User-initiated logout: revoke the refresh token server-side first (best
 // effort), then clear local storage no matter what. Always clearing means a
 // failed network call can never trap the user in a logged-in UI.
 export async function logout() {
-  const token = getToken()
-  if (token) {
-    try {
-      await revokeSession(token)
-    } catch {
-      // Swallow — local sign-out below must still happen.
-    }
+  try {
+    await revokeSession()
+  } catch {
+    // Swallow — local sign-out below must still happen.
   }
   clearTokens()
 }

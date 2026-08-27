@@ -3,15 +3,10 @@
 import { clearTokens } from '../lib/auth'
 import { SessionExpiredError } from './tickets'
 import { API_ROOT } from './config'
+import { authFetch } from '../lib/authFetch'
 
 const USER_URL = `${API_ROOT}/User`
 const ROLE_URL = `${API_ROOT}/Role`
-
-function authHeader() {
-  const token = localStorage.getItem('accessToken')
-  if (!token) throw new Error('You must be signed in to continue.')
-  return { Authorization: `Bearer ${token}` }
-}
 
 // Shared 401/403 handling for the admin-only endpoints.
 function guard(response) {
@@ -25,23 +20,23 @@ function guard(response) {
 }
 
 export async function fetchUsers() {
-  const response = await fetch(USER_URL, { headers: authHeader() })
+  const response = await authFetch(USER_URL)
   guard(response)
   if (!response.ok) throw new Error('Could not load users.')
   return response.json()
 }
 
 export async function fetchRoles() {
-  const response = await fetch(ROLE_URL, { headers: authHeader() })
+  const response = await authFetch(ROLE_URL)
   guard(response)
   if (!response.ok) throw new Error('Could not load roles.')
   return response.json()
 }
 
 export async function createUser({ firstName, lastName, email, password, roleId }) {
-  const response = await fetch(USER_URL, {
+  const response = await authFetch(USER_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ firstName, lastName, email, password, roleId }),
   })
   guard(response)
@@ -52,9 +47,9 @@ export async function createUser({ firstName, lastName, email, password, roleId 
 }
 
 export async function updateUser(id, { firstName, lastName, roleId, isActive }) {
-  const response = await fetch(`${USER_URL}/${id}`, {
+  const response = await authFetch(`${USER_URL}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ firstName, lastName, roleId, isActive }),
   })
   guard(response)
@@ -62,9 +57,8 @@ export async function updateUser(id, { firstName, lastName, roleId, isActive }) 
 }
 
 export async function deleteUser(id) {
-  const response = await fetch(`${USER_URL}/${id}`, {
+  const response = await authFetch(`${USER_URL}/${id}`, {
     method: 'DELETE',
-    headers: authHeader(),
   })
   guard(response)
   if (response.status === 400) {
