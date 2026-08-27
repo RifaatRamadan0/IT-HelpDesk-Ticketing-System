@@ -11,7 +11,7 @@ ASP.NET Core 8 Web API with a React frontend, SQL Server behind Entity Framework
 | App | [helpdesk-fawn-five.vercel.app](https://helpdesk-fawn-five.vercel.app) |
 | API | [it-helpdesk-ticketing-system-t437.onrender.com](https://it-helpdesk-ticketing-system-t437.onrender.com) |
 
-The API runs on a free Render instance, so it sleeps after 15 minutes of no traffic. A cold first request measured about 90 seconds — Render waking the container, then Azure SQL resuming behind it. Give it two minutes before assuming it is broken.
+The API runs on a free Render instance, so it sleeps after 15 minutes of no traffic. A cold first request measured about 90 seconds: Render waking the container, then Azure SQL resuming behind it. Give it two minutes before assuming it is broken.
 
 ## Screens
 
@@ -62,9 +62,11 @@ The board is the same five states as columns:
 
 ## Features
 
-**Auth.** Login returns an access token valid for 60 minutes, and that is the only credential the browser keeps. When it expires, the user signs in again.
+**Auth.** Login returns an access token valid for 15 minutes, and that is the only credential JavaScript can reach. Alongside it the server sets an httpOnly refresh cookie: the browser attaches it automatically, but page scripts cannot read it. When the access token expires the client trades that cookie for a new one and retries the failed request, so the session continues without a visible interruption.
 
-Logout revokes the user's refresh tokens server-side, then clears local storage whether or not that call succeeded, so a failed network request can never leave the user stuck in a signed-in UI. Passwords are hashed with BCrypt.
+Refresh tokens are stored only as a SHA-256 hash, so reading the database yields nothing that can be used to sign in. Each refresh rotates the token and revokes the one it consumed, leaving other devices untouched; replaying an already-revoked token is treated as theft and drops every session for that user.
+
+Logout identifies the session by the cookie rather than the access token, so it still works once the access token has expired, which is the case where the old behaviour silently left the refresh token alive. Local storage is cleared whether or not the call succeeded, so a failed network request can never leave the user stuck in a signed-in UI. Passwords are hashed with BCrypt.
 
 **Tickets.** Create, assign, escalate, comment, and a per-ticket timer that records time spent by agents.
 
@@ -91,7 +93,7 @@ Both prompts list the categories and priorities read from the database, and the 
 | Frontend | React 19, Vite, React Router, TanStack Query, Recharts, plain CSS (one stylesheet per component) |
 | Backend | ASP.NET Core 8 Web API, AutoMapper, Swagger |
 | Data | SQL Server, Entity Framework Core, code-first migrations |
-| Auth | JWT bearer, BCrypt |
+| Auth | JWT bearer, httpOnly refresh cookie, BCrypt |
 | Real time | SignalR |
 | Other | QuestPDF for reports, OpenAI API |
 
@@ -114,7 +116,7 @@ frontend/
     └── lib/                auth helpers and nav config
 ```
 
-Controllers stay thin. They map a service result to an HTTP status and nothing more. Role gating sits on the controller as `[Authorize]` attributes, but that only decides who may call an endpoint. Whether *this* user may touch *this* ticket is decided in the service layer.
+Controllers stay thin. They map a service result to an HTTP status, and past that handle only transport concerns. `AuthController` sets and clears the refresh cookie because a cookie is an HTTP detail the service layer has no business knowing about. Role gating sits on the controller as `[Authorize]` attributes, but that only decides who may call an endpoint. Whether *this* user may touch *this* ticket is decided in the service layer.
 
 Services return a result enum rather than throwing or returning a bare bool, so the controller can tell "not found" apart from "not allowed" apart from "illegal transition" and pick the right status code. Those enums live in `BLL/Common/`, next to `AttachmentValidator`.
 
@@ -130,13 +132,13 @@ Roles, categories, priorities and statuses are seeded through EF migrations, so 
 
 ## API
 
-All routes sit under `/api`. Everything except login and refresh needs a bearer token.
+All routes sit under `/api`. Everything except login, refresh and logout needs a bearer token. Those three identify the caller from the request itself, either email and password or the refresh cookie.
 
 | Method | Route | Who |
 |---|---|---|
 | POST | `/api/Auth/login` | anyone |
 | POST | `/api/Auth/refresh` | anyone |
-| POST | `/api/Auth/logout` | any signed-in user |
+| POST | `/api/Auth/logout` | anyone; the refresh cookie identifies the session |
 | POST | `/api/Ticket` | Employee |
 | GET | `/api/Ticket` | Admin, Manager |
 | GET | `/api/Ticket/mine` | Employee |
@@ -213,7 +215,7 @@ docker build -t helpdesk-api .
 docker run -p 8080:8080 --env-file .env helpdesk-api
 ```
 
-Create a `.env` next to the Dockerfile first — it is gitignored. In a container, nested config keys use double underscores, not colons:
+Create a `.env` next to the Dockerfile first. It is gitignored. In a container, nested config keys use double underscores, not colons:
 
 ```
 ConnectionStrings__DefaultConnection=...
@@ -235,13 +237,14 @@ Cors__AllowedOrigins__0=https://your-frontend.vercel.app
 | `Jwt:Key` | signing key, long and random |
 | `Jwt:Issuer` | `HelpDeskAPI`, set in `appsettings.json` |
 | `Jwt:Audience` | `HelpDeskClient`, set in `appsettings.json` |
-| `Jwt:ExpiryMinutes` | access token lifetime, `60` in `appsettings.json`. Required — there is no code fallback, so removing the key breaks login |
+| `Jwt:ExpiryMinutes` | access token lifetime, `15` in `appsettings.json`. Required; there is no code fallback, so removing the key breaks login |
 | `Cors:AllowedOrigins` | array of frontend origins |
 | `OpenAI:ApiKey` | required for the AI features |
 | `OpenAI:Model` | model name |
+| `ASPNETCORE_ENVIRONMENT` | `Development` locally, from `launchSettings.json`. Nothing sets it in the container, so hosting gets the framework default of `Production`. It selects the refresh cookie's `SameSite` and `Secure` flags, so forcing `Development` on the deployed API would stop the cookie being sent |
 | `VITE_API_URL` | frontend only, base URL of the API |
 
-Refresh token lifetime is fixed at 7 days in code and is not configurable.
+Refresh token lifetime is fixed at 7 days in code, used for both the database row and the cookie’s expiry, and is not configurable.
 
 Nothing secret is committed. `appsettings.json` holds only non-sensitive defaults. Use user secrets locally and environment variables in hosting.
 
@@ -257,12 +260,14 @@ Nothing secret is committed. `appsettings.json` holds only non-sensitive default
 
 The Dockerfile is multi-stage: SDK image to publish, runtime image to run. The final image binds to `$PORT` so Render can assign one.
 
+The app and the API are on different domains, so the refresh cookie is cross-site. It is issued `SameSite=None; Secure`, which needs HTTPS and `ASPNETCORE_ENVIRONMENT=Production` on the API. Locally the same cookie is issued `SameSite=Lax` without `Secure`, because `localhost:5173` and `localhost:5175` are the same site (cookies ignore the port) and the dev API may be plain HTTP.
+
 The Azure database is serverless and pauses when idle, so the first query after a quiet period also has a delay. Combined with Render's sleep, a cold visit costs about 90 seconds; warm requests are immediate.
 
 ## Limitations and next steps
 
 - No automated tests. Everything was verified by hand through Swagger and the UI. A suite around the ticket state machine and the auth rules is the first thing I would add, since those two carry the most logic.
-- Sessions last 60 minutes. The client never calls the refresh endpoint the API already exposes, so the access token's lifetime is the session length. Wiring that call into the API layer is the fix, and the endpoint's rotation would then also need per-token revocation and reuse detection.
+- The refresh cookie is cross-site, because the app and the API sit on different domains. Safari and Brave block `SameSite=None` cookies by default, so those visitors re-authenticate every 15 minutes instead of refreshing silently. Serving the API under the frontend’s domain would fix it, but SignalR would then have to keep connecting to Render directly, since WebSockets do not survive a Vercel rewrite.
 - Attachments are stored on the container filesystem at `Uploads/Attachments`, which Render's free tier wipes on redeploy. `IFileStorageService` already isolates this, so moving to blob storage is a one class swap.
 - The ticket list returns every row. It needs pagination before the table gets large.
 - Notifications are in-app only. There is no email.
