@@ -115,6 +115,14 @@
   cursor: not-allowed;
 }
 
+.login-notice {
+  margin: 20px 0 0;
+  text-align: center;
+  color: #8a8f9c;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 @media (max-width: 600px) {
   .login-card {
     padding: 32px 24px;

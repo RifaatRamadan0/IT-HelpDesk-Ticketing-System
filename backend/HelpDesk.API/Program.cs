@@ -178,6 +178,9 @@ namespace HelpDesk_API
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.MapGet("/wake", () => Results.Ok(new { status = "awake" }))
+               .AllowAnonymous();
+
             app.MapControllers();
             app.MapHub<NotificationHub>("/hubs/notifications");
 

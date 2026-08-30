@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
+import { WAKE_URL } from '../api/config'
 import './Login.css'
 
 function Login() {
@@ -9,12 +10,32 @@ function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [apiAwake, setApiAwake] = useState(false)
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetch(WAKE_URL, { signal: controller.signal })
+      .then(() => setApiAwake(true))
+      .catch(() => {})
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (!loading) return
+
+    const timer = setTimeout(() => setSlow(true), 3000)
+    return () => clearTimeout(timer)
+  }, [loading])
 
   async function handleSubmit(event) {
     // Without this the browser does a full-page GET on the form action,
     // which throws away our React state and the fetch call.
     event.preventDefault()
     setError('')
+    setSlow(false)
     setLoading(true)
 
     try {
@@ -72,6 +93,14 @@ function Login() {
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
+
+          {slow && (
+            <p className="login-notice">
+              {apiAwake
+                ? 'Server is up, starting the database. Almost there.'
+                : 'Waking the server — this demo runs on free hosting, so the first sign-in can take up to a minute.'}
+            </p>
+          )}
         </form>
       </div>
     </div>
