@@ -147,10 +147,22 @@ namespace HelpDesk_API
 
             var app = builder.Build();
 
-            using (var scope = app.Services.CreateScope())
+            _ = Task.Run(async () =>
             {
-                scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
-            }
+                using var scope = app.Services.CreateScope();
+                var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+                try
+                {
+                    await scope.ServiceProvider.GetRequiredService<AppDbContext>()
+                               .Database.MigrateAsync();
+                    logger.LogInformation("Startup migration complete.");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Startup migration failed.");
+                }
+            });
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
