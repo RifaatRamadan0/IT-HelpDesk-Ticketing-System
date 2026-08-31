@@ -35,6 +35,9 @@ namespace HelpDesk.BLL.Services
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
 
+            if (!user.IsActive)
+                return null;
+
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = await IssueRefreshTokenAsync(user.Id);
 
@@ -60,6 +63,12 @@ namespace HelpDesk.BLL.Services
 
             if (stored.ExpiresDate < DateTime.UtcNow)
                 return null;
+
+            if (!stored.User.IsActive)
+            {
+                await _refreshTokenRepository.RevokeAllByUserIdAsync(stored.UserId);
+                return null;
+            }
 
             await _refreshTokenRepository.RevokeAsync(stored.Id);
 
