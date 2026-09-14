@@ -55,7 +55,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpPost("ai-suggest")]
-        [Authorize(Roles = "Employee")]
+        [Authorize(Roles = "Employee,Admin")]
         public async Task<IActionResult> SuggestClassification([FromBody] AiSuggestRequestDto request)
         {
             var (result, suggestion) = await _aiSuggestionService.SuggestAsync(
