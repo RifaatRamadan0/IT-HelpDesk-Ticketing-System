@@ -86,6 +86,8 @@ The chat assistant covers the whole form. The employee describes the problem, th
 
 Both prompts list the categories and priorities read from the database, and the model's answer is checked against those lists afterwards, so neither feature can invent a category that does not exist. Without an `OpenAI:ApiKey` both endpoints return 503 and the rest of the app works normally.
 
+Both features run on `gpt-6-luna`, set by `OpenAI:Model`, with reasoning effort `none` and temperature 0. They used `gpt-5.4-nano` until October 2026, when OpenAI deprecated it (shutdown 1 April 2027) and named `gpt-6-luna` as the replacement. Reasoning effort has to be `none` because this model rejects a `temperature` value under any other setting.
+
 ## Stack
 
 | Layer | Tech |
@@ -240,7 +242,7 @@ Cors__AllowedOrigins__0=https://your-frontend.vercel.app
 | `Jwt:ExpiryMinutes` | access token lifetime, `15` in `appsettings.json`. Required; there is no code fallback, so removing the key breaks login |
 | `Cors:AllowedOrigins` | array of frontend origins |
 | `OpenAI:ApiKey` | required for the AI features |
-| `OpenAI:Model` | model name |
+| `OpenAI:Model` | model name, `gpt-6-luna` in `appsettings.json` |
 | `ASPNETCORE_ENVIRONMENT` | `Development` locally, from `launchSettings.json`. Nothing sets it in the container, so hosting gets the framework default of `Production`. It selects the refresh cookie's `SameSite` and `Secure` flags, so forcing `Development` on the deployed API would stop the cookie being sent |
 | `VITE_API_URL` | frontend only, base URL of the API |
 

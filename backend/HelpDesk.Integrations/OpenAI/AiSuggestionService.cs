@@ -23,7 +23,7 @@ namespace HelpDesk.Integrations.OpenAI
             _categoryService = categoryService;
             _priorityService = priorityService;
             _apiKey = configuration["OpenAI:ApiKey"];
-            _model = configuration["OpenAI:Model"] ?? "gpt-5.4-nano";
+            _model = configuration["OpenAI:Model"] ?? "gpt-6-luna";
         }
 
         public async Task<(AiSuggestResult Result, AiSuggestionDto? Suggestion)> SuggestAsync(
@@ -45,11 +45,16 @@ namespace HelpDesk.Integrations.OpenAI
                     new UserChatMessage($"Title: {title}\nDescription: {description}")
                 };
 
+                // gpt-6-luna only accepts Temperature when reasoning effort is none.
+                // The SDK still marks ReasoningEffortLevel as experimental (OPENAI001).
+#pragma warning disable OPENAI001
                 var options = new ChatCompletionOptions
                 {
+                    ReasoningEffortLevel = ChatReasoningEffortLevel.None,
                     Temperature = 0,
                     ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
                 };
+#pragma warning restore OPENAI001
 
                 ChatCompletion completion = await client.CompleteChatAsync(messages, options);
 
