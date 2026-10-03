@@ -4,6 +4,15 @@ import { login } from '../api/auth'
 import { WAKE_URL } from '../api/config'
 import './Login.css'
 
+// Public demo logins, one per role, so a visitor can try the app without
+// asking for credentials. These accounts exist in the production database.
+const DEMO_ACCOUNTS = [
+  { role: 'Employee', email: 'ahmadramadan@gmail.com', password: 'Ahmad123', blurb: 'Raise tickets, chat with the AI assistant' },
+  { role: 'Agent', email: 'ali@gmail.com', password: 'Ali123', blurb: 'Work assigned tickets, run the timer' },
+  { role: 'Manager', email: 'mohamad@gmail.com', password: 'mohamad123', blurb: 'Assign tickets, board view, PDF reports' },
+  { role: 'Admin', email: 'rifaatramadan0@gmail.com', password: 'Rifaat123', blurb: 'Manager view plus user management' },
+]
+
 function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -30,10 +39,23 @@ function Login() {
     return () => clearTimeout(timer)
   }, [loading])
 
-  async function handleSubmit(event) {
+  function handleSubmit(event) {
     // Without this the browser does a full-page GET on the form action,
     // which throws away our React state and the fetch call.
     event.preventDefault()
+    signIn(email, password)
+  }
+
+  function handleDemo(account) {
+    // Fill the form so the visitor sees which account is being used.
+    // Pass the values straight to signIn: the state above won't hold them
+    // until the next render.
+    setEmail(account.email)
+    setPassword(account.password)
+    signIn(account.email, account.password)
+  }
+
+  async function signIn(email, password) {
     setError('')
     setSlow(false)
     setLoading(true)
@@ -58,6 +80,28 @@ function Login() {
           <h1 className="login-title">HelpDesk</h1>
         </div>
         <p className="login-subtitle">IT Help Desk &amp; Ticketing</p>
+
+        <div className="login-demo">
+          <p className="login-demo-heading">Try a demo account</p>
+          <div className="login-demo-grid">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.role}
+                type="button"
+                className="login-demo-card"
+                onClick={() => handleDemo(account)}
+                disabled={loading}
+              >
+                <span className="login-demo-role">{account.role}</span>
+                <span className="login-demo-blurb">{account.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="login-divider">
+          <span>or sign in with email</span>
+        </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="login-label" htmlFor="email">
