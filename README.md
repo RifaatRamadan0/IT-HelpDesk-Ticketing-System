@@ -82,7 +82,7 @@ Logout identifies the session by the cookie rather than the access token, so it 
 
 **AI.** Two OpenAI features, both for employees. `ai-suggest` reads the title and description already typed into the form and picks a category and priority, which the employee can apply or ignore.
 
-The chat assistant covers the whole form. The employee describes the problem, the assistant asks about anything it cannot work out on its own, and once it has a title, description, category and priority it hands back a draft to confirm. Nothing is written until the employee clicks Create ticket, and the ticket is then created through the normal `POST /api/Ticket` endpoint like any other.
+The chat assistant covers the whole form. The employee describes the problem. If the description is too thin for a technician to act on (what happens, where, since when, what was already tried), the assistant asks for the missing details in one message. Once it has a title, description, category and priority it hands back a draft to confirm. Nothing is written until the employee clicks Create ticket, and the ticket is then created through the normal `POST /api/Ticket` endpoint like any other.
 
 Both prompts list the categories and priorities read from the database, and the model's answer is checked against those lists afterwards, so neither feature can invent a category that does not exist. Without an `OpenAI:ApiKey` both endpoints return 503 and the rest of the app works normally.
 
