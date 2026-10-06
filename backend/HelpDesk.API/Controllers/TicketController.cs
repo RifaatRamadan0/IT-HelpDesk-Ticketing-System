@@ -10,6 +10,8 @@ namespace HelpDesk_API.Controllers
     [Route("api/Ticket")]
     [ApiController]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
@@ -40,6 +42,8 @@ namespace HelpDesk_API.Controllers
 
         [Authorize(Roles = "Employee")]
         [HttpPost]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -56,6 +60,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpPost("ai-suggest")]
         [Authorize(Roles = "Employee,Admin")]
+        [ProducesResponseType(typeof(AiSuggestionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status502BadGateway)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status503ServiceUnavailable)]
         public async Task<IActionResult> SuggestClassification([FromBody] AiSuggestRequestDto request)
         {
             var (result, suggestion) = await _aiSuggestionService.SuggestAsync(
@@ -72,6 +80,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpPost("chat")]
         [Authorize(Roles = "Employee")]
+        [ProducesResponseType(typeof(AiChatResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status502BadGateway)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status503ServiceUnavailable)]
         public async Task<IActionResult> Chat([FromBody] AiChatRequestDto request)
         {
             var (result, response) = await _aiChatService.ContinueAsync(request.Messages);
@@ -87,6 +99,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        [ProducesResponseType(typeof(TicketResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetTicketById(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -104,6 +118,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,Manager")]
+        [ProducesResponseType(typeof(ICollection<TicketResponseDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllTickets()
         {
             var tickets = await _ticketService.GetAllAsync();
@@ -112,6 +127,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("statistics")]
         [Authorize(Roles = "Admin,Manager,Agent,Employee")]
+        [ProducesResponseType(typeof(TicketStatisticsDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetStatistics()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -123,6 +139,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("report")]
         [Authorize(Roles = "Admin,Manager")]
+        [ProducesResponseType(typeof(ReportDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetReport([FromQuery] DateTime from, [FromQuery] DateTime to)
         {
             if (to <= from)
@@ -134,6 +152,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("report/export")]
         [Authorize(Roles = "Admin,Manager")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "application/pdf")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ExportReport([FromQuery] DateTime from, [FromQuery] DateTime to)
         {
             if (to <= from)
@@ -149,6 +169,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("assigned")]
         [Authorize(Roles = "Agent")]
+        [ProducesResponseType(typeof(ICollection<TicketResponseDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAssignedTickets()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -158,6 +179,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("mine")]
         [Authorize(Roles = "Employee")]
+        [ProducesResponseType(typeof(ICollection<TicketResponseDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyTickets()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -167,6 +189,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Employee")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -183,6 +209,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Admin,Manager,Agent,Employee")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateTicketStatus(int id, [FromBody] UpdateTicketStatusRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -202,6 +231,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}/assign")]
         [Authorize(Roles = "Admin,Manager")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> AssignTicket(int id, [FromBody] AssignTicketRequestDto request)
         {
             var assignedByUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -220,6 +253,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}/escalate")]
         [Authorize(Roles = "Agent")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> EscalateTicket(int id, [FromBody] EscalateTicketRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -238,6 +275,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}/time")]
         [Authorize(Roles = "Admin,Manager,Agent")]
+        [ProducesResponseType(typeof(TimeTrackingResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetTicketTime(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -252,6 +291,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}/timer")]
         [Authorize(Roles = "Agent")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SetTicketTimer(int id, [FromBody] SetTimerRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -269,6 +311,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}/comments")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        [ProducesResponseType(typeof(ICollection<TicketCommentResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetTicketComments(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -285,6 +329,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPost("{id}/comments")]
         [Authorize(Roles = "Manager,Employee,Agent")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AddTicketComment(int id, [FromBody] CreateTicketCommentRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -299,6 +346,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}/activity")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        [ProducesResponseType(typeof(ICollection<ActivityLogResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetTicketActivity(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -313,6 +362,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}/attachments")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        [ProducesResponseType(typeof(ICollection<AttachmentResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetTicketAttachments(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -327,6 +378,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPost("{id}/attachments")]
         [Authorize(Roles = "Manager,Employee,Agent")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AddTicketAttachment(int id, [FromBody] CreateAttachmentRequestDto request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -348,6 +402,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("{id}/attachments/{attachmentId}/download")]
         [Authorize(Roles = "Admin,Manager,Employee,Agent")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "application/octet-stream")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DownloadTicketAttachment(int id, int attachmentId)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -366,6 +422,8 @@ namespace HelpDesk_API.Controllers
 
         [HttpDelete("{id}/attachments/{attachmentId}")]
         [Authorize(Roles = "Manager,Employee,Agent")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteTicketAttachment(int id, int attachmentId)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -382,6 +440,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Employee")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> DeleteTicket(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

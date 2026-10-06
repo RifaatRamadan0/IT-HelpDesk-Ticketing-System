@@ -10,6 +10,8 @@ namespace HelpDesk_API.Controllers
     [Route("api/User")]
     [ApiController]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -21,6 +23,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(ICollection<UserListItemDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllUsers()
         {
             var users = await _userService.GetAllAsync();
@@ -29,6 +32,7 @@ namespace HelpDesk_API.Controllers
 
         [HttpGet("agents")]
         [Authorize(Roles = "Admin,Manager")]
+        [ProducesResponseType(typeof(ICollection<UserSummaryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAgents()
         {
             var agents = await _userService.GetAgentsAsync();
@@ -37,6 +41,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequestDto request)
         {
             var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -49,6 +56,9 @@ namespace HelpDesk_API.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequestDto request)
         {
             var updated = await _userService.UpdateAsync(id, request);
@@ -59,6 +69,10 @@ namespace HelpDesk_API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

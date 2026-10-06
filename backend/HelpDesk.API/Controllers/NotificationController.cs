@@ -1,3 +1,4 @@
+using HelpDesk.BLL.DTOs;
 using HelpDesk.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ namespace HelpDesk_API.Controllers
     [Route("api/Notification")]
     [ApiController]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService;
@@ -18,6 +20,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpGet]
+        [ProducesResponseType(typeof(ICollection<NotificationResponseDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMine()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -26,6 +29,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpGet("unread-count")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetUnreadCount()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -34,6 +38,8 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpPut("{id}/read")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> MarkRead(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -46,6 +52,7 @@ namespace HelpDesk_API.Controllers
         }
 
         [HttpPut("read-all")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> MarkAllRead()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
